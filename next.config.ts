@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
     // See app/global-not-found.tsx and docs/DECISIONS.md.
     globalNotFound: true,
   },
+  // Browsers request /favicon.ico by themselves. Until the real logo arrives,
+  // point them to the placeholder SVG icon (app/icon.svg).
+  async redirects() {
+    return [
+      { source: '/favicon.ico', destination: '/icon.svg', permanent: false },
+    ];
+  },
   turbopack: {
     rules: {
       '*.css': {

@@ -1,44 +1,36 @@
-## Status: M0 in progress, waiting on the owner for the local database (updated 2026-10-25)
+## Status: M0 done, waiting for the owner's "go" for M1 (updated 2026-10-25)
 
 ### Done
 
-- [ ] M0 Foundations (code finished, not ticked until the database steps below are verified)
+- [x] M0 Foundations (2026-10-25)
 
-### Now: M0 checklist
+### Now
 
-- [x] Git repository (branch `main`), remote `origin` set to https://github.com/HamedSallloua/TuniProf.git (nothing pushed yet)
-- [x] Next.js 16 + TypeScript + Tailwind 4 at the repo root
-- [x] `next-intl`: French default without URL prefix, Arabic under `/ar`, `dir="rtl"` on Arabic pages
-- [x] Layout: header, footer, language switcher, skip link, bilingual 404 page
-- [x] Design tokens (brand colours `#003801`, `#fce3c5`, `#633601`), Inter + Noto Sans Arabic loaded locally
-- [x] ESLint + Prettier + `npm run typecheck`
-- [x] `.env.example`, `BRAND_NAME` constant
-- [x] PostgreSQL connection (Drizzle + `pg`), ordered SQL migrations in `db/migrations/`, `db:migrate` and `db:reset` (dev and test)
-- [x] `/healthz`
-- [x] Vitest: messages, routing, migrations tests
-- [x] GitHub Actions CI (lint, typecheck, format, db reset, tests, build)
-- [x] `docs/` memory files
-- [ ] Owner creates the local databases (`db/setup-local.sql`) and `.env.local`
-- [ ] `npm run db:reset` verified on the real database; the 3 database tests run instead of being skipped
-- [ ] First push to GitHub and green CI run (needs the owner's go to push)
+- [ ] M1 Database foundation and catalogues (not started, waiting for "go" and the délégations CSV)
 
-### Test results (2026-10-25)
+### M0 results (2026-10-25)
 
-- `npm run lint`: pass. `npm run typecheck`: pass. `npm run build`: pass.
-- `npm test`: 9 passed, 3 skipped (the 3 database tests, skipped because no test database exists yet on this machine).
-- Checked in the browser on the production build: `/` French left-to-right, `/ar` Arabic right-to-left, language switch works both ways, unknown URLs return a real 404.
+- Git repository on `main`, remote `origin` set to https://github.com/HamedSallloua/TuniProf.git. **Nothing pushed yet: the owner said "don't push yet".**
+- Next.js 16 + TypeScript + Tailwind 4; `next-intl` with French unprefixed and Arabic under `/ar` (`dir="rtl"`); header, footer, language switcher, bilingual 404; design tokens; ESLint, Prettier, typecheck.
+- PostgreSQL 18 locally: `tuniprof_dev` and `tuniprof_test` rebuilt with `npm run db:reset` and `npm run db:reset:test`; extensions pgcrypto, btree_gist, pg_trgm present.
+- `/healthz` returns 200 with the database up.
+- `npm test`: 12 passed, 0 skipped (messages, routing, migrations against the real test database).
+- `npm run lint`, `typecheck`, `format:check`, `build`, `npm audit` (0 vulnerabilities): all pass.
+- `/`, `/ar`, `/healthz`, `/favicon.ico` return 200; unknown URLs return 404.
+- CI workflow written (`.github/workflows/ci.yml`) but **not yet run**, because nothing is pushed.
 
 ### Blockers waiting on owner
 
-- Run the database setup (commands given at the end of the M0 report), then create `.env.local`.
-- Say "push" so I can push `main` to GitHub and check that CI is green.
-- M1: official list of délégations (CSV).
-- M4: the Arabic payment helper lines, word for word. They are not in `docs/SPEC.md`, so I cannot translate or invent them. Also: beneficiary name, Flouci number, CCP number, D17 details, working hours.
+- M1: official list of délégations (CSV, about 264 rows).
+- M4: the Arabic payment helper lines, word for word (not in `docs/SPEC.md`). Also beneficiary name, Flouci number, CCP number, D17 details, working hours.
 - M2: platform WhatsApp number and Meta Cloud API credentials (dev stub is used until then).
+- Whenever ready: say "push" so `main` goes to GitHub and the first CI run can be checked.
+- Review the Arabic strings in `docs/GLOSSARY.md`.
 
 ### Known bugs / tech debt
 
 - The language switcher keeps the path but drops query strings (for example search filters). Revisit at M5.
 - `app/global-not-found.tsx` relies on an experimental Next.js flag (see DECISIONS.md, 2026-10-25). Re-check after Next.js upgrades.
-- The tab icon `app/icon.svg` is a plain placeholder until the owner sends the logo.
+- `/favicon.ico` redirects to the placeholder `app/icon.svg`. Replace both when the owner sends the logo.
 - The header shows the brand as text only, until the logo arrives.
+- CI has never run (not pushed). Possible first-run surprises: Node 24 or Postgres service settings.

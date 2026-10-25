@@ -39,5 +39,5 @@ Dated record of every choice not fixed by the spec. Newest at the bottom of each
 - **Translations are type-checked:** `types/next-intl.d.ts` ties keys to `messages/fr.json`.
 - **Time zone** `Africa/Tunis` is set in `i18n/request.ts` for formatting.
 - **Language switcher** links keep the page path; query strings are dropped for now (tech debt).
-- **Placeholder tab icon** (`app/icon.svg`: cream "T" on green) until the logo arrives.
+- **Placeholder tab icon** (`app/icon.svg`: cream "T" on green) until the logo arrives. Browsers also ask for `/favicon.ico` on their own, so `next.config.ts` redirects it (temporary, not permanent) to `/icon.svg`. Alternative rejected: generating a binary `.ico` for a placeholder that will be replaced.
 - **CI:** GitHub Actions, PostgreSQL 16 service container, Node 24.
