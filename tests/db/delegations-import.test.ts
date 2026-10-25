@@ -43,6 +43,25 @@ describe('parseDelegationsCsv', () => {
     ]);
   });
 
+  it('ignores a leading La / Le / L\' in the governorate, but keeps "Le Kef" as is', () => {
+    const refs = [
+      ...governorates,
+      { slug: 'manouba', name_ar: 'منوبة' },
+      { slug: 'le-kef', name_ar: 'الكاف' },
+      { slug: 'ariana', name_ar: 'أريانة' },
+    ];
+    const csv = [
+      'governorate;name_fr',
+      'La Manouba;Tebourba',
+      'Manouba;Djedeida',
+      'Le Kef;Dahmani',
+      "L'Ariana;Raoued",
+    ].join('\n');
+    expect(
+      parseDelegationsCsv(csv, refs).map((r) => r.governorateSlug),
+    ).toEqual(['manouba', 'manouba', 'le-kef', 'ariana']);
+  });
+
   it('works without a name_ar column', () => {
     const rows = parseDelegationsCsv(
       'governorate,name_fr\nTunis,Carthage',

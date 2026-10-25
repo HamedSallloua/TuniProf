@@ -11,6 +11,9 @@ export const DEFAULT_DELEGATIONS_CSV = path.join(
   'delegations.csv',
 );
 
+// "la-", "le-", "les-" and "l-" (from L') at the start of a governorate slug.
+const LEADING_ARTICLE = /^(la|le|les|l)-/;
+
 export type GovernorateRef = { slug: string; name_ar: string };
 
 export type DelegationRow = {
@@ -59,9 +62,14 @@ export function parseDelegationsCsv(
     const nameFr = (cells[frCol] ?? '').trim();
     const nameAr = arCol === -1 ? '' : (cells[arCol] ?? '').trim();
 
-    const governorateSlug = bySlug.has(slugify(govText))
-      ? slugify(govText)
-      : byArabicName.get(govText);
+    // Exact slug first (so "Le Kef" stays "le-kef"), then without a leading
+    // article ("La Manouba" -> "manouba"), then the Arabic name.
+    const govSlug = slugify(govText);
+    const governorateSlug = bySlug.has(govSlug)
+      ? govSlug
+      : bySlug.has(govSlug.replace(LEADING_ARTICLE, ''))
+        ? govSlug.replace(LEADING_ARTICLE, '')
+        : byArabicName.get(govText);
     if (!governorateSlug) {
       errors.push(`Line ${line}: unknown governorate "${govText}".`);
       return;
