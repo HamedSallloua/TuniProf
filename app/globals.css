@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+/*
+  Design tokens. Change colours here only; components use the names
+  (bg-primary, text-primary-foreground, ...), never raw hex values.
+  Brand colours given by the owner: #003801 (main), #fce3c5 (secondary), #633601 (third).
+*/
+@theme {
+  --color-primary: #003801;
+  --color-primary-foreground: #fce3c5;
+  --color-secondary: #fce3c5;
+  --color-secondary-foreground: #003801;
+  --color-accent: #633601;
+  --color-accent-foreground: #fce3c5;
+
+  --color-background: #fffaf3;
+  --color-surface: #ffffff;
+  --color-foreground: #1d1b16;
+  --color-muted: #5b5346;
+  --color-border: #e8d5b9;
+
+  --font-sans:
+    'Inter Variable', 'Noto Sans Arabic Variable', system-ui, -apple-system,
+    'Segoe UI', sans-serif;
+
+  --radius-card: 0.75rem;
+}
+
+/* Arabic pages: Arabic font first, Latin font as fallback for digits and brand. */
+html[dir='rtl'] {
+  --font-sans:
+    'Noto Sans Arabic Variable', 'Inter Variable', system-ui, -apple-system,
+    'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}

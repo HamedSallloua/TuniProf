@@ -1,0 +1,9 @@
+.next
+node_modules
+package-lock.json
+next-env.d.ts
+
+# Owner-supplied documents stay exactly as written
+CLAUDE.md
+docs/SPEC.md
+docs/AGENT_CONTEXT.md

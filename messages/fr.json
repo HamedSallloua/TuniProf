@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "title": "{brand} | Cours particuliers en Tunisie",
+    "description": "La plateforme tunisienne de cours particuliers, du primaire à l'université."
+  },
+  "a11y": {
+    "skipToContent": "Aller au contenu"
+  },
+  "language": {
+    "label": "Langue"
+  },
+  "header": {
+    "homeLabel": "{brand}, retour à l'accueil"
+  },
+  "footer": {
+    "copyright": "© {year} {brand}. Tous droits réservés.",
+    "tagline": "Cours particuliers, du primaire à l'université."
+  },
+  "home": {
+    "title": "Trouvez le bon professeur près de chez vous",
+    "subtitle": "La plateforme tunisienne de cours particuliers, du primaire à l'université.",
+    "statusTitle": "Site en construction",
+    "statusBody": "Les premières fonctionnalités arrivent bientôt."
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "body": "Cette page n'existe pas ou a été déplacée.",
+    "backHome": "Retour à l'accueil"
+  }
+}
