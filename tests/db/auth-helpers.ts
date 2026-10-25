@@ -20,11 +20,25 @@ export function device(name = 'a'): DeviceContext {
   return { deviceHash: `device-hash-${name}`, ipHash: `ip-hash-${name}` };
 }
 
-/** Empties every auth table. Safe: only ever used on the test database. */
+/**
+ * Empties the account tables (users, sessions, challenges, profiles, audit log) of the
+ * TEST database. Plain DELETEs, never TRUNCATE ... CASCADE: that would also empty the
+ * catalogues and settings, which point at users.
+ */
 export async function clearAuthTables(pool: Pool): Promise<void> {
-  await pool.query(
-    'TRUNCATE auth_sessions, otp_challenges, webhook_events, rate_limit_events, users CASCADE',
-  );
+  for (const table of [
+    'audit_log',
+    'teacher_profiles', // its levels, zones and subjects go with it
+    'auth_sessions',
+    'otp_challenges',
+    'webhook_events',
+    'rate_limit_events',
+    'users',
+  ]) {
+    await pool.query(`DELETE FROM ${table}`);
+  }
+  // Subjects typed by teachers ("Autre") are test leftovers, not catalogue.
+  await pool.query("DELETE FROM subjects WHERE status = 'pending'");
 }
 
 let messageCounter = 0;

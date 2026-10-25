@@ -74,6 +74,8 @@ export const subjects = pgTable('subjects', {
   status: text('status', { enum: ['approved', 'pending'] })
     .notNull()
     .default('approved'),
+  // The teacher who typed this subject under "Autre" (null for catalogue subjects).
+  suggestedBy: uuid('suggested_by'),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),
   ...timestamps,
