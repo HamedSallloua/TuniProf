@@ -118,5 +118,259 @@
       "roleAdminSupport": "Support",
       "logout": "Se déconnecter"
     }
+  },
+  "profile": {
+    "pageTitle": "Mon profil",
+    "intro": "Ces informations seront visibles par les parents et les élèves. Remplissez-les avec soin.",
+    "sections": {
+      "identity": "Identité",
+      "teaching": "Enseignement",
+      "where": "Où et comment",
+      "subjects": "Matières et tarifs"
+    },
+    "fields": {
+      "fullName": "Nom complet",
+      "photo": "Photo (facultatif)",
+      "photoHint": "JPG ou PNG, 2 Mo au maximum. Elle sera recadrée en carré.",
+      "removePhoto": "Supprimer ma photo",
+      "currentPhoto": "Photo actuelle",
+      "waitingPhoto": "Nouvelle photo en attente de vérification",
+      "phone": "Téléphone",
+      "phoneHint": "Numéro vérifié. Il n'apparaît qu'après un clic sur « Voir les coordonnées ».",
+      "diploma": "Niveau / diplôme",
+      "experience": "Expérience",
+      "choose": "Choisir...",
+      "levels": "Niveaux enseignés",
+      "selectAll": "Tout sélectionner",
+      "selectNone": "Tout désélectionner",
+      "bio": "Présentation",
+      "bioHint": "Entre 30 et 600 caractères. Ni numéro de téléphone, ni lien, ni réseau social : le contact se fait uniquement avec le bouton « Voir les coordonnées ».",
+      "bioCount": "{count} / 600",
+      "modes": "Mode de cours",
+      "governorate": "Gouvernorat",
+      "zones": "Zones couvertes",
+      "zonesHint": "Choisissez d'abord un gouvernorat. Obligatoire, sauf si vous enseignez uniquement en ligne.",
+      "zonesAll": "Toutes les délégations",
+      "zonesNone": "Aucune",
+      "subjectsHint": "Cochez vos matières et indiquez votre tarif horaire en DT.",
+      "rate": "Tarif horaire (DT)",
+      "custom": "Autre matière",
+      "customHint": "Si votre matière n'est pas dans la liste. Elle sera vérifiée avant d'apparaître sur votre profil public.",
+      "customName": "Nom de la matière",
+      "pendingSubject": "En attente de validation"
+    },
+    "options": {
+      "diploma": {
+        "primary_teacher": "Instituteur(trice)",
+        "middle_school_teacher": "Professeur du collège",
+        "high_school_teacher": "Professeur du secondaire",
+        "university_teacher": "Enseignant universitaire",
+        "student": "Étudiant (master / ingénieur / autre)",
+        "engineer_executive": "Ingénieur / cadre",
+        "other_graduate": "Autre diplômé"
+      },
+      "experience": {
+        "lt_1": "Moins d'1 an",
+        "1_3": "1 à 3 ans",
+        "3_5": "3 à 5 ans",
+        "5_10": "5 à 10 ans",
+        "10_15": "10 à 15 ans",
+        "gt_15": "Plus de 15 ans"
+      },
+      "mode": {
+        "at_home": "À domicile",
+        "at_teacher": "Chez le professeur",
+        "online": "En ligne"
+      },
+      "cycle": {
+        "primaire": "Primaire",
+        "preparatoire": "Préparatoire",
+        "secondaire": "Secondaire",
+        "universite": "Université"
+      }
+    },
+    "actions": {
+      "saveDraft": "Enregistrer le brouillon",
+      "saveChanges": "Enregistrer les modifications",
+      "submit": "Envoyer pour vérification",
+      "resubmit": "Corriger et renvoyer"
+    },
+    "notices": {
+      "saved": "Modifications enregistrées.",
+      "savedWithVersion": "Enregistré. Les modifications du nom, de la photo, de la présentation et du diplôme seront vérifiées avant publication ; l'ancienne version reste en ligne en attendant.",
+      "submitted": "Profil envoyé. Nous le vérifions, en général sous 24 heures.",
+      "versionInfo": "Les changements du nom, de la photo, de la présentation et du diplôme sont vérifiés avant publication. Les autres changements s'appliquent tout de suite.",
+      "suspended": "Votre profil est suspendu : vous ne pouvez plus le modifier.",
+      "fixErrors": "Corrigez les champs signalés ci-dessous."
+    },
+    "errors": {
+      "required": "Ce champ est obligatoire.",
+      "nameLength": "Le nom doit contenir entre 2 et 60 caractères.",
+      "nameChars": "Le nom ne peut contenir que des lettres, espaces, tirets, apostrophes et points.",
+      "bioTooShort": "La présentation doit contenir au moins 30 caractères.",
+      "bioTooLong": "La présentation ne doit pas dépasser 600 caractères.",
+      "bioContainsContact": "Retirez les numéros de téléphone, liens, adresses e-mail et noms de réseaux sociaux : le contact se fait uniquement avec le bouton « Voir les coordonnées ».",
+      "invalidChoice": "Choix invalide.",
+      "modesRequired": "Choisissez au moins un mode de cours.",
+      "levelsRequired": "Choisissez au moins un niveau.",
+      "zonesRequired": "Choisissez au moins une zone (ou n'enseignez qu'en ligne).",
+      "subjectsRequired": "Choisissez au moins une matière avec son tarif.",
+      "rateInvalid": "Entrez un tarif en DT, par exemple 25 ou 25.5.",
+      "rateOutOfRange": "Le tarif doit être compris entre {min} et {max} DT.",
+      "subjectNameInvalid": "Nom de matière invalide (2 à 40 caractères, sans coordonnées).",
+      "tooManyCustomSubjects": "Vous avez déjà 3 matières en attente de validation.",
+      "photoTooLarge": "La photo dépasse 2 Mo.",
+      "photoType": "La photo doit être un fichier JPG ou PNG.",
+      "photoCorrupt": "Cette photo ne peut pas être lue. Essayez-en une autre.",
+      "incomplete": "Le profil est incomplet : complétez les champs obligatoires.",
+      "suspended": "Votre profil est suspendu.",
+      "invalidSelection": "Un choix n'est plus valide (zone, niveau ou matière). Rechargez la page.",
+      "invalid_state": "Votre profil ne peut pas être envoyé dans son état actuel.",
+      "generic": "Une erreur est survenue. Réessayez."
+    },
+    "banner": {
+      "draft": {
+        "title": "Profil à compléter",
+        "body": "Complétez votre profil, puis envoyez-le pour vérification."
+      },
+      "pending": {
+        "title": "Profil en cours de vérification",
+        "body": "Nous le vérifions, en général sous 24 heures."
+      },
+      "rejected": {
+        "title": "Profil refusé",
+        "body": "Corrigez le point signalé puis renvoyez votre profil.",
+        "reasonLabel": "Motif"
+      },
+      "approved": {
+        "title": "Profil approuvé",
+        "body": "Votre profil est validé. Il sera visible des visiteurs dès qu'un abonnement sera actif."
+      },
+      "versionPending": {
+        "title": "Modifications en cours de vérification",
+        "body": "Votre version actuelle reste en ligne en attendant."
+      },
+      "versionRejected": {
+        "title": "Modifications refusées",
+        "body": "Votre version précédente reste en ligne.",
+        "reasonLabel": "Motif"
+      },
+      "suspended": {
+        "title": "Profil suspendu",
+        "body": "Votre profil n'est plus visible. Contactez-nous pour en savoir plus.",
+        "reasonLabel": "Motif"
+      }
+    },
+    "home": {
+      "missingTitle": "Il reste à compléter :",
+      "completeProfile": "Compléter mon profil",
+      "editProfile": "Modifier mon profil",
+      "fixProfile": "Corriger mon profil",
+      "subscriptionSoon": "L'abonnement pour apparaître dans les résultats arrive bientôt.",
+      "listingTitle": "Affichage public",
+      "listingOn": "Votre profil est affiché dans les résultats (une fois visible).",
+      "listingOff": "Vous avez mis votre affichage en pause.",
+      "listingPause": "Mettre en pause",
+      "listingResume": "Reprendre l'affichage"
+    },
+    "missing": {
+      "fullName": "Nom complet",
+      "diploma": "Niveau / diplôme",
+      "experience": "Expérience",
+      "bio": "Présentation",
+      "governorate": "Gouvernorat",
+      "modes": "Mode de cours",
+      "levels": "Niveaux enseignés",
+      "subjects": "Matières et tarifs",
+      "zones": "Zones couvertes",
+      "phone": "Numéro de téléphone vérifié"
+    },
+    "reasons": {
+      "incomplete_info": "Informations incomplètes",
+      "name_invalid": "Nom invalide",
+      "photo_inappropriate": "Photo inadaptée",
+      "bio_contact_info": "Présentation avec coordonnées (numéro, lien ou réseau social)",
+      "bio_unclear": "Présentation trop vague",
+      "diploma_unclear": "Diplôme à préciser",
+      "rates_unrealistic": "Tarifs irréalistes",
+      "other": "Autre motif"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "pending": "En attente de vérification",
+      "approved": "Approuvé",
+      "rejected": "Refusé",
+      "suspended": "Suspendu"
+    }
+  },
+  "admin": {
+    "title": "Administration",
+    "queueLink": "Profils à vérifier",
+    "queueTitle": "Profils à vérifier",
+    "queueEmpty": "Aucun profil en attente.",
+    "unnamed": "(sans nom)",
+    "kind": {
+      "profile": "Nouveau profil",
+      "version": "Modification"
+    },
+    "columns": {
+      "name": "Nom",
+      "phone": "Téléphone",
+      "governorate": "Gouvernorat",
+      "type": "Type",
+      "since": "En attente depuis"
+    },
+    "open": "Examiner",
+    "detail": {
+      "back": "Retour à la liste",
+      "status": "Statut",
+      "phone": "Téléphone",
+      "governorate": "Gouvernorat",
+      "zones": "Zones",
+      "levels": "Niveaux",
+      "subjects": "Matières et tarifs",
+      "modes": "Modes",
+      "experience": "Expérience",
+      "diploma": "Diplôme",
+      "bio": "Présentation",
+      "fullName": "Nom",
+      "photo": "Photo",
+      "noPhoto": "Pas de photo",
+      "address": "Adresse publique",
+      "none": "Aucun",
+      "versionTitle": "Modification en attente",
+      "current": "Version en ligne",
+      "proposed": "Version proposée",
+      "pendingSubject": "matière à valider",
+      "submittedAt": "Envoyé le"
+    },
+    "actions": {
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "approveVersion": "Approuver la modification",
+      "rejectVersion": "Refuser la modification",
+      "suspend": "Suspendre",
+      "restore": "Rétablir le profil",
+      "reason": "Motif",
+      "note": "Précision (obligatoire pour « Autre motif »)",
+      "suspendReason": "Motif de la suspension (obligatoire)",
+      "chooseReason": "Choisir un motif..."
+    },
+    "flash": {
+      "approved": "Profil approuvé.",
+      "rejected": "Profil refusé.",
+      "versionApproved": "Modification approuvée.",
+      "versionRejected": "Modification refusée.",
+      "suspended": "Profil suspendu.",
+      "restored": "Profil rétabli."
+    },
+    "errors": {
+      "forbidden": "Action non autorisée.",
+      "not_found": "Profil introuvable.",
+      "invalid_state": "Cette action n'est plus possible : le profil a changé.",
+      "incomplete": "Le profil est incomplet.",
+      "invalid_reason": "Choisissez un motif (et une précision pour « Autre motif »).",
+      "generic": "Une erreur est survenue."
+    }
   }
 }
