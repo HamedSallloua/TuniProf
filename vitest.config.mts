@@ -15,6 +15,16 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Database tests share one test database and some empty the auth tables.
+    fileParallelism: false,
     include: ['tests/**/*.test.ts'],
+    // Fixed values so tests never depend on the owner's private settings.
+    env: {
+      AUTH_SECRET: 'test-only-secret-not-used-anywhere-else-0123456789',
+      VERIFICATION_PROVIDER: 'dev-stub',
+      WHATSAPP_PLATFORM_NUMBER: '21600000001',
+      WHATSAPP_APP_SECRET: 'test-app-secret',
+      WHATSAPP_VERIFY_TOKEN: 'test-verify-token',
+    },
   },
 });
