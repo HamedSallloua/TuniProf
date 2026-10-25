@@ -16,7 +16,15 @@ export async function SiteHeader() {
         >
           {BRAND_NAME}
         </Link>
-        <LanguageSwitcher />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/connexion"
+            className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium hover:bg-white/10 focus-visible:outline-secondary"
+          >
+            {t('login')}
+          </Link>
+          <LanguageSwitcher />
+        </div>
       </div>
     </header>
   );

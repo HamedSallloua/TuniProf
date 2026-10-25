@@ -10,7 +10,8 @@
     "label": "Langue"
   },
   "header": {
-    "homeLabel": "{brand}, retour à l'accueil"
+    "homeLabel": "{brand}, retour à l'accueil",
+    "login": "Connexion"
   },
   "footer": {
     "copyright": "© {year} {brand}. Tous droits réservés.",
@@ -26,5 +27,96 @@
     "title": "Page introuvable",
     "body": "Cette page n'existe pas ou a été déplacée.",
     "backHome": "Retour à l'accueil"
+  },
+  "auth": {
+    "fields": {
+      "phone": "Numéro de téléphone",
+      "phoneHint": "8 chiffres, commençant par 2, 4, 5 ou 9. Exemple : 22 345 678",
+      "password": "Mot de passe",
+      "passwordHint": "Au moins 8 caractères.",
+      "confirmPassword": "Confirmer le mot de passe",
+      "newPassword": "Nouveau mot de passe",
+      "email": "E-mail (facultatif)",
+      "terms": "J'accepte les conditions générales d'utilisation.",
+      "phoneConsent": "J'accepte que mon numéro de téléphone soit affiché aux visiteurs qui cliquent sur « Voir les coordonnées »."
+    },
+    "errors": {
+      "invalidPhone": "Entrez un numéro tunisien valide : 8 chiffres commençant par 2, 4, 5 ou 9.",
+      "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+      "passwordTooLong": "Le mot de passe ne doit pas dépasser 128 caractères.",
+      "passwordContainsPhone": "Le mot de passe ne doit pas contenir votre numéro de téléphone.",
+      "passwordMismatch": "Les deux mots de passe ne sont pas identiques.",
+      "invalidEmail": "Entrez une adresse e-mail valide ou laissez le champ vide.",
+      "termsRequired": "Vous devez accepter les conditions générales.",
+      "phoneConsentRequired": "Vous devez accepter l'affichage de votre numéro.",
+      "phoneTaken": "Un compte existe déjà avec ce numéro. Connectez-vous.",
+      "invalidCredentials": "Numéro ou mot de passe incorrect.",
+      "suspended": "Ce compte est suspendu. Contactez-nous.",
+      "accountExists": "Ce numéro appartient à un compte professeur ou administrateur. Connectez-vous avec votre mot de passe.",
+      "rateLimited": "Trop de tentatives. Réessayez dans {minutes} min.",
+      "locked": "Trop d'essais incorrects pour ce numéro. Réessayez dans {minutes} min.",
+      "noAccount": "Aucun compte avec mot de passe n'existe pour ce numéro.",
+      "notVerified": "La vérification WhatsApp n'est pas terminée.",
+      "invalidRequest": "Cette demande n'est plus valide. Recommencez.",
+      "generic": "Une erreur est survenue. Réessayez."
+    },
+    "signup": {
+      "title": "Créer un compte professeur",
+      "intro": "Votre profil restera masqué tant qu'un abonnement n'est pas actif. Nous vérifions votre numéro par WhatsApp.",
+      "submit": "Continuer",
+      "haveAccount": "Vous avez déjà un compte ?",
+      "loginLink": "Se connecter"
+    },
+    "login": {
+      "title": "Connexion",
+      "submit": "Se connecter",
+      "forgot": "Mot de passe oublié ?",
+      "noAccount": "Pas encore de compte ?",
+      "signupLink": "Créer un compte professeur",
+      "reviewerLink": "Laisser un avis (sans mot de passe)",
+      "resetDone": "Mot de passe modifié. Vous pouvez vous connecter."
+    },
+    "reviewer": {
+      "title": "Laisser un avis",
+      "intro": "Pas de mot de passe : nous vérifions votre numéro par WhatsApp à chaque connexion.",
+      "submit": "Continuer",
+      "back": "Retour à la connexion"
+    },
+    "reset": {
+      "title": "Mot de passe oublié",
+      "intro": "Nous vérifions votre numéro par WhatsApp, puis vous choisissez un nouveau mot de passe.",
+      "submit": "Continuer",
+      "newTitle": "Nouveau mot de passe",
+      "newIntro": "Votre numéro est vérifié. Choisissez un nouveau mot de passe.",
+      "newSubmit": "Enregistrer le mot de passe"
+    },
+    "verify": {
+      "title": "Vérification par WhatsApp",
+      "intro": "Envoyez ce code depuis WhatsApp avec le numéro <num>{phone}</num>.",
+      "codeLabel": "Votre code",
+      "openWhatsApp": "Envoyer le code sur WhatsApp",
+      "orManual": "Ou ouvrez WhatsApp et envoyez le code au numéro <num>{number}</num>.",
+      "validFor": "Le code est valable 5 minutes. Cette page se met à jour automatiquement.",
+      "message": "Vérification {brand} : {code}",
+      "waiting": "En attente de votre message...",
+      "verified": "Numéro vérifié.",
+      "continue": "Continuer",
+      "expired": "Le code a expiré.",
+      "locked": "Trop d'essais incorrects. Réessayez dans une heure.",
+      "restart": "Recommencer",
+      "devTitle": "Mode développement",
+      "devText": "WhatsApp n'est pas connecté. Ce bouton simule le message que vous enverriez.",
+      "devButton": "Simuler le message WhatsApp"
+    },
+    "space": {
+      "teacherTitle": "Espace professeur",
+      "hello": "Connecté avec le numéro <num>{phone}</num>.",
+      "soon": "Votre profil et votre abonnement seront disponibles prochainement.",
+      "adminTitle": "Administration",
+      "role": "Rôle : {role}",
+      "roleAdminSuper": "Super administrateur",
+      "roleAdminSupport": "Support",
+      "logout": "Se déconnecter"
+    }
   }
 }

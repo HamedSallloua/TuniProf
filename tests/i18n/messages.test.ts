@@ -31,9 +31,9 @@ describe('UI messages', () => {
     }
   });
 
-  it('uses the same placeholders in both languages', () => {
+  it('uses the same placeholders and tags in both languages', () => {
     const placeholders = (text: string) =>
-      (text.match(/\{\w+\}/g) ?? []).sort();
+      (text.match(/\{\w+\}|<\/?\w+>/g) ?? []).sort();
     for (const key of Object.keys(frFlat)) {
       expect(placeholders(arFlat[key]), key).toEqual(placeholders(frFlat[key]));
     }
