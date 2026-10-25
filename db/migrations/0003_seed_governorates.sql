@@ -1,0 +1,27 @@
+-- The 24 governorates of Tunisia (spec 4.2). Arabic names: owner to review.
+INSERT INTO governorates (slug, name_fr, name_ar, sort_order) VALUES
+  ('tunis',        'Tunis',        'تونس',         1),
+  ('ariana',       'Ariana',       'أريانة',       2),
+  ('ben-arous',    'Ben Arous',    'بن عروس',      3),
+  ('manouba',      'Manouba',      'منوبة',        4),
+  ('nabeul',       'Nabeul',       'نابل',         5),
+  ('zaghouan',     'Zaghouan',     'زغوان',        6),
+  ('bizerte',      'Bizerte',      'بنزرت',        7),
+  ('beja',         'Béja',         'باجة',         8),
+  ('jendouba',     'Jendouba',     'جندوبة',       9),
+  ('le-kef',       'Le Kef',       'الكاف',        10),
+  ('siliana',      'Siliana',      'سليانة',       11),
+  ('sousse',       'Sousse',       'سوسة',         12),
+  ('monastir',     'Monastir',     'المنستير',     13),
+  ('mahdia',       'Mahdia',       'المهدية',      14),
+  ('sfax',         'Sfax',         'صفاقس',        15),
+  ('kairouan',     'Kairouan',     'القيروان',     16),
+  ('kasserine',    'Kasserine',    'القصرين',      17),
+  ('sidi-bouzid',  'Sidi Bouzid',  'سيدي بوزيد',   18),
+  ('gabes',        'Gabès',        'قابس',         19),
+  ('medenine',     'Médenine',     'مدنين',        20),
+  ('tataouine',    'Tataouine',    'تطاوين',       21),
+  ('gafsa',        'Gafsa',        'قفصة',         22),
+  ('tozeur',       'Tozeur',       'توزر',         23),
+  ('kebili',       'Kébili',       'قبلي',         24)
+ON CONFLICT (slug) DO NOTHING;
