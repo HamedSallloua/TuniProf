@@ -2,6 +2,52 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-26 (M3)
+
+AGENT_CONTEXT and the spec agree on M3. Choices not fixed by the spec:
+
+**Database**
+
+- **Rules in the database, not only the form:** a profile can only become `pending` or `approved` if `profile_is_complete()` is true (trigger on status). Only a `teacher` account can own a profile (composite foreign key on `(id, role)`). A zone is a délégation of the profile's governorate (two composite foreign keys), so changing governorate means removing the zones first. This function is the one definition reused for public visibility at M4 and M5 (invariant 1). The "bio has no contact details" rule can only be checked in code, so it lives in `lib/profile/rules.ts`.
+- **`settings` and `audit_log` created now** (planned for M4 and M11) so the admin actions of M3 are logged from the start instead of added later. `settings` holds the hourly rate range (`profile.rate_min_millimes` 5000, `profile.rate_max_millimes` 300000).
+- **Profile data is nullable while in draft** (progressive saving); completeness is checked at submit, at approval, and after any edit of an approved profile.
+- **Plain SQL** (`pg`) for the profile modules too, for the same reasons as auth (locks, small transactions).
+
+**Status machine**
+
+- draft -> pending (teacher submits) -> approved or rejected (admin); rejected -> pending again after the teacher fixes it. A pending profile can still be edited by its owner (it is not public). Suspension is only possible from approved, and restore goes back to approved. A suspended profile cannot be edited, re-listed or submitted.
+- **Pending version** covers exactly name, photo, bio and diploma (spec 4.2), stored as JSON on the profile. A second edit replaces the waiting one; changing back to the live values removes it. Approving applies the four fields; refusing keeps the live version and stores the reason shown on the teacher's banner.
+- **Public address (`slug`)** is created at the first approval from name + first subject + governorate, made unique with -2, -3, and never changes (name edits later do not change the URL).
+- **Refusal reasons:** 8 templates (incomplete info, invalid name, inappropriate photo, contact details in the bio, vague bio, diploma to specify, unrealistic rates, other) plus an optional note; "other" requires a note. Stored as codes, shown to the teacher in their language.
+- **Admin review functions check in the database** that the actor is an active admin, in addition to the page guard. Support and super admins can both review (the spec restricts only prices and settings).
+- **The admin sees the teacher's phone number** on the review page (needed to judge a profile; teachers consented to display, spec 4.1).
+- **Founding offer and credit-before-approval** will hook into `approveProfile` at M4 (a comment marks the place).
+
+**Content rules**
+
+- **Name:** 2-60 characters, letters (Latin or Arabic), spaces, hyphens, apostrophes and dots; no digits or symbols.
+- **Bio contact detection:** refuses a run of 8 or more digits (any separators, Arabic digits too, except a year range such as 2015-2020), `@handles` and e-mail addresses, links and web addresses, and the names of messaging and social apps (WhatsApp, Facebook, Instagram, Telegram, TikTok, Snapchat, Messenger, Viber, also in Arabic). The spec says "phone numbers, links and social handles"; refusing app names is my addition, because "contact me on WhatsApp" defeats the reveal button. Easy to relax if the owner finds it too strict.
+- **Hourly rates:** typed in DT with a dot or a comma (up to 3 decimals), stored in millimes, range read from the settings.
+- **"Autre" subject:** a subject typed by the teacher becomes a `pending` subject owned by that teacher (hidden from the public catalogue); the same name (any letter case) reuses the existing subject; at most 3 waiting subjects per teacher to limit catalogue spam. Approval screen: M11.
+
+**Photos**
+
+- Checked by the file's bytes (never its name or declared type), refused above 2 MB, more than 36 million pixels is refused before decoding, then re-encoded as a **400 x 400 JPEG, centre crop**, quality 82, metadata removed, transparent PNG flattened on white. The file name is a new random id, so replaced photos get a new address and old files are deleted after the save succeeds.
+- `StorageProvider` interface with a local-folder implementation (`./uploads`, git-ignored) served by `/media/photos/...`; the S3 version comes at M12.
+- Server actions accept bodies up to 3 MB (the default 1 MB is smaller than a photo).
+
+**Screens**
+
+- **The profile form is sent by hand (`onSubmit`) instead of through the form's `action`**: React empties a form after an action, which unticked the levels and zones the teacher had chosen after any validation error (found while testing in the browser).
+- Saving a draft is lenient (empty fields allowed, filled fields must be valid); submitting, and every edit of an approved profile, is strict.
+- All admin screens are available in French and Arabic like the rest of the site (Arabic is a draft).
+- The teacher can pause and resume the public listing (`is_listed`, spec 2.3); it has no visible effect until M5.
+
+**Tests**
+
+- `clearAuthTables` now deletes rows table by table instead of `TRUNCATE ... CASCADE`, which would also have emptied the catalogues and settings (they now point at users).
+- A test compares the TypeScript completeness rule with the SQL function on 1,536 combinations of present and missing fields.
+
 ## 2026-10-26 (M2)
 
 Owner decisions applied: reviewer accounts have `NULL` password and a fresh WhatsApp check for every session, with strict permissions (see the M0 entry for the full decision). AGENT_CONTEXT and spec agree on the rest of M2.

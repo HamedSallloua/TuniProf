@@ -24,6 +24,10 @@ Source of truth: `messages/fr.json` and `messages/ar.json`. Arabic is Modern Sta
 
 All the texts of sign-up, login, reviewer login, password reset, WhatsApp verification and the teacher and admin placeholder pages are in `messages/fr.json` and `messages/ar.json` under `auth` (fields, errors, signup, login, reviewer, reset, verify, space) and `header.login`. The Arabic is a draft for the owner to review. Terms used: "Se connecter / تسجيل الدخول", "Mot de passe oublié / نسيت كلمة المرور", "Vérification par WhatsApp / التحقق عبر واتساب", "Laisser un avis / كتابة تقييم", "Espace professeur / فضاء الأستاذ". Phone numbers are always written left to right.
 
+## Teacher profile and admin review (M3)
+
+All the texts are in `messages/fr.json` and `messages/ar.json` under `profile` (form fields and hints, option lists for diploma, experience, modes and cycles, errors, status banners, the 8 refusal reasons, statuses) and `admin` (queue, detail page, actions, messages). The Arabic is a draft for the owner to review. Refusal reasons: Informations incomplètes / معلومات ناقصة, Nom invalide / اسم غير صالح, Photo inadaptée / صورة غير مناسبة, Présentation avec coordonnées / تقديم يحتوي على بيانات اتصال, Présentation trop vague / تقديم غامض جدًا, Diplôme à préciser / الشهادة تحتاج إلى توضيح, Tarifs irréalistes / أسعار غير واقعية, Autre motif / سبب آخر.
+
 ## Catalogue names (seeded by migrations 0003 to 0006): owner to review the Arabic
 
 Governorates (24): Tunis تونس · Ariana أريانة · Ben Arous بن عروس · Manouba منوبة · Nabeul نابل · Zaghouan زغوان · Bizerte بنزرت · Béja باجة · Jendouba جندوبة · Le Kef الكاف · Siliana سليانة · Sousse سوسة · Monastir المنستير · Mahdia المهدية · Sfax صفاقس · Kairouan القيروان · Kasserine القصرين · Sidi Bouzid سيدي بوزيد · Gabès قابس · Médenine مدنين · Tataouine تطاوين · Gafsa قفصة · Tozeur توزر · Kébili قبلي
