@@ -2,6 +2,14 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-25 (M1, délégations CSV)
+
+- **Count is 279, not 264.** 264 is the older official figure (2011 decree). The owner's CSV had 278 rows; the English Wikipedia list (a secondary source, itself inconsistent: text says 272, table sums to 279) matches 270 of them exactly after ignoring accents and case. No official list was available to compare against, so newer délégations created since 2011 are plausible but not proven.
+- **Four edits to the owner's CSV, all approved by the owner:** added `Nabeul;Hammamet;الحمامات` (missing from the file); in Gabès, `Mareth-Dkhila` became `Mareth` (مارث), `Toujane` became `Dkhilet Toujane` (دخيلة توجان), and `El Hamma Ouest` became `Habib Thameur Bouatouch` (الحبيب ثامر بوعطوش, same délégation under its current name; Arabic name to be confirmed by the owner). Nothing was deleted.
+- **Importer accepts a leading article** on the governorate ("La Manouba" for "Manouba", "L'Ariana"). Exact match comes first, so "Le Kef" keeps working. Alternative rejected: editing the owner's rows or renaming the governorate in the database.
+- Spelling variants against the reference were left as the owner wrote them (see PROGRESS.md).
+- The CSV starts with a BOM (Excel "CSV UTF-8"); the reader strips it.
+
 ## 2026-10-25 (M1)
 
 - **Catalogue keys:** uuid primary key plus a unique `slug` on every catalogue (slug is used in URLs such as `/sfax/mathematiques` and by seed and import scripts). A database check forces slugs to be lowercase letters, digits and dashes.
