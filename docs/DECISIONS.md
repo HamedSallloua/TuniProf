@@ -2,6 +2,36 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-26 (M2)
+
+Owner decisions applied: reviewer accounts have `NULL` password and a fresh WhatsApp check for every session, with strict permissions (see the M0 entry for the full decision). AGENT_CONTEXT and spec agree on the rest of M2.
+
+- **Verification code:** `TTP-` plus 4 characters of the 32-character alphabet (spec 8.5 example `TTP-7KQ2`). It is derived from the challenge id and `AUTH_SECRET` (HMAC), so it is never stored; the database keeps only its keyed hash (`code_hash`), as the spec asks. The screen recomputes the code, and only for the browser that started the challenge.
+- **Who can verify:** the webhook looks up the waiting challenge by the SENDER's number. A code sent from any other phone never verifies the typed number; it counts as a wrong try against the challenge that owns the code.
+- **Attempts:** "5 attempts" = 5 wrong tries (wrong code, or right code from the wrong phone). After the 5th, the number is locked for 1 hour (also blocks new challenges for that number); the 6th message fails even with the right code (acceptance test 21).
+- **One challenge per kind at a time:** starting a new one expires the previous one for that number and purpose.
+- **Finishing is bound to the browser:** a verified challenge can be used once, within 5 minutes, only by the browser that started it (anonymous `tp_device` cookie).
+- **Device and address:** `tp_device` random cookie (httpOnly, 2 years) hashed with `AUTH_SECRET`, plus a hash of `x-forwarded-for`. Mobile networks share addresses, so the address limits are higher than the cookie limits.
+- **Limits (one file, `lib/auth/config.ts`):** starting a WhatsApp check: 5 per phone, 10 per device, 30 per address, per hour. Wrong passwords: 10 per phone, 20 per device, 60 per address, per hour. The spec only says "rate limits"; these numbers are my choice.
+- **Password rules:** the spec is silent. I chose 8 to 128 characters, and not containing the phone number. No composition rules. A wrong login never reveals the rules.
+- **Login never reveals whether a number has an account** (same message, same work via a dummy hash). Password reset also starts the same way for any number; the person learns "no account" only after proving they own the number. Sign-up does say when a number is already registered (unavoidable for usability).
+- **Unverified sign-ups can be redone:** a pending account (number never verified) is replaced by a new sign-up for the same number. Active accounts are never touched.
+- **One number = one account = one role.** A teacher or admin number cannot become a reviewer; it signs in with its password.
+- **Session lifetimes:** teacher 30 days, reviewer 24 hours, admin 12 hours (my choice; the owner only fixed that reviewers verify again for each new session). Resetting a password signs the account out everywhere.
+- **Teacher consents:** two separate timestamped checkboxes (terms, public phone display), both required by a database check for teachers.
+- **Email:** optional, stored lowercase, not verified.
+- **Admins** are created only with `npm run admin:create` (hidden password prompt), already verified, never through public sign-up.
+- **Auth code uses plain SQL** (`pg`) rather than Drizzle: it needs row locks and small transactions. Drizzle stays for ordinary data later.
+- **argon2id library:** `@node-rs/argon2` (ready-made binaries, no compiler needed on Windows or Vercel), OWASP settings 19 MiB / 2 passes / 1 thread. Its enum cannot be imported with `isolatedModules`, so the number 2 (argon2id) is written with a comment.
+- **WhatsApp provider:** the Cloud API formats (webhook handshake, `X-Hub-Signature-256`, message payload) come from Meta's documentation and are only tested with simulated payloads until the owner's credentials exist. The dev stub can never run in production: `getVerificationProviderName()` always returns `whatsapp` there, and the stub refuses unsigned requests.
+- **Dev stub screen:** the "simulate the WhatsApp message" button calls exactly the same function as the webhook.
+- **Pages and routes** (French names for both languages, as in the spec routes): `/inscription`, `/connexion`, `/connexion-avis`, `/mot-de-passe-oublie`, `/mot-de-passe-oublie/nouveau`, `/verification`, `/espace-professeur`, `/admin`. All `noindex`.
+- **A form that submits itself** (after verification) is guarded to submit once; development mode runs effects twice and a repeated request is also handled on the server (found while testing in the browser).
+- **After an error, passwords are cleared** (the browser resets forms); phone, email and the two checkboxes are kept.
+- **Phone numbers are always shown left to right** (a `<num>` tag in the messages) even inside Arabic sentences.
+- **Test settings:** Vitest sets its own `AUTH_SECRET` and WhatsApp values, so tests never depend on the owner's private settings; database test files run one after the other because some empty the auth tables.
+- **Not done on purpose (later milestones):** Turnstile on abuse (M5, M12), cleanup of old rate-limit rows (M7), the CGU link (M5), account state in the header (M3), the review form (M6).
+
 ## 2026-10-25 (M1, délégations CSV)
 
 - **Count is 279, not 264.** 264 is the older official figure (2011 decree). The owner's CSV had 278 rows; the English Wikipedia list (a secondary source, itself inconsistent: text says 272, table sums to 279) matches 270 of them exactly after ignoring accents and case. No official list was available to compare against, so newer délégations created since 2011 are plausible but not proven.

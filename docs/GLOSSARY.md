@@ -20,6 +20,10 @@ Source of truth: `messages/fr.json` and `messages/ar.json`. Arabic is Modern Sta
 | notFound.body      | Cette page n'existe pas ou a été déplacée.                                  | هذه الصفحة غير موجودة أو تم نقلها.                                  |
 | notFound.backHome  | Retour à l'accueil                                                          | العودة إلى الصفحة الرئيسية                                          |
 
+## Account screens (M2)
+
+All the texts of sign-up, login, reviewer login, password reset, WhatsApp verification and the teacher and admin placeholder pages are in `messages/fr.json` and `messages/ar.json` under `auth` (fields, errors, signup, login, reviewer, reset, verify, space) and `header.login`. The Arabic is a draft for the owner to review. Terms used: "Se connecter / تسجيل الدخول", "Mot de passe oublié / نسيت كلمة المرور", "Vérification par WhatsApp / التحقق عبر واتساب", "Laisser un avis / كتابة تقييم", "Espace professeur / فضاء الأستاذ". Phone numbers are always written left to right.
+
 ## Catalogue names (seeded by migrations 0003 to 0006): owner to review the Arabic
 
 Governorates (24): Tunis تونس · Ariana أريانة · Ben Arous بن عروس · Manouba منوبة · Nabeul نابل · Zaghouan زغوان · Bizerte بنزرت · Béja باجة · Jendouba جندوبة · Le Kef الكاف · Siliana سليانة · Sousse سوسة · Monastir المنستير · Mahdia المهدية · Sfax صفاقس · Kairouan القيروان · Kasserine القصرين · Sidi Bouzid سيدي بوزيد · Gabès قابس · Médenine مدنين · Tataouine تطاوين · Gafsa قفصة · Tozeur توزر · Kébili قبلي

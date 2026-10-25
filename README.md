@@ -18,12 +18,13 @@ Open http://localhost:3000 (French) and http://localhost:3000/ar (Arabic).
 
 ## Useful commands
 
-| Command                                                 | What it does                                  |
-| ------------------------------------------------------- | --------------------------------------------- |
-| `npm run dev`                                           | Start the site for development                |
-| `npm run lint` / `npm run typecheck` / `npm run format` | Check and tidy the code                       |
-| `npm test`                                              | Run the tests                                 |
-| `npm run db:migrate`                                    | Apply new database migrations                 |
-| `npm run db:reset`                                      | Erase the development database and rebuild it |
-| `npm run db:reset:test`                                 | Same, for the test database                   |
-| `npm run build`                                         | Build the production version                  |
+| Command                                                 | What it does                                                   |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| `npm run dev`                                           | Start the site for development                                 |
+| `npm run lint` / `npm run typecheck` / `npm run format` | Check and tidy the code                                        |
+| `npm test`                                              | Run the tests                                                  |
+| `npm run db:migrate`                                    | Apply new database migrations                                  |
+| `npm run db:reset`                                      | Erase the development database and rebuild it                  |
+| `npm run db:reset:test`                                 | Same, for the test database                                    |
+| `npm run admin:create -- --role=admin_super`            | Create an admin account (asks for phone and a hidden password) |
+| `npm run build`                                         | Build the production version                                   |
