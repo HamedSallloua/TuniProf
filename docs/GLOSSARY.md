@@ -20,6 +20,44 @@ Source of truth: `messages/fr.json` and `messages/ar.json`. Arabic is Modern Sta
 | notFound.body      | Cette page n'existe pas ou a été déplacée.                                  | هذه الصفحة غير موجودة أو تم نقلها.                                  |
 | notFound.backHome  | Retour à l'accueil                                                          | العودة إلى الصفحة الرئيسية                                          |
 
+## Catalogue names (seeded by migrations 0003 to 0006): owner to review the Arabic
+
+Governorates (24): Tunis تونس · Ariana أريانة · Ben Arous بن عروس · Manouba منوبة · Nabeul نابل · Zaghouan زغوان · Bizerte بنزرت · Béja باجة · Jendouba جندوبة · Le Kef الكاف · Siliana سليانة · Sousse سوسة · Monastir المنستير · Mahdia المهدية · Sfax صفاقس · Kairouan القيروان · Kasserine القصرين · Sidi Bouzid سيدي بوزيد · Gabès قابس · Médenine مدنين · Tataouine تطاوين · Gafsa قفصة · Tozeur توزر · Kébili قبلي
+
+| Level (French)      | Arabic (draft)                   |
+| ------------------- | -------------------------------- |
+| Primaire 1 to 6     | السنة الأولى ... السادسة ابتدائي |
+| Préparatoire 7 to 9 | السنة السابعة ... التاسعة أساسي  |
+| Secondaire 1 to 4   | السنة الأولى ... الرابعة ثانوي   |
+| Université L1 to L3 | إجازة 1 ... إجازة 3              |
+
+| Subject (French)     | Arabic (draft)     |
+| -------------------- | ------------------ |
+| Anglais              | الإنجليزية         |
+| Arabe                | العربية            |
+| Français             | الفرنسية           |
+| Histoire-Géo         | التاريخ والجغرافيا |
+| Informatique         | الإعلامية          |
+| Mathématiques        | الرياضيات          |
+| Philosophie          | الفلسفة            |
+| Physique             | الفيزياء           |
+| Sciences Naturelles  | علوم الحياة والأرض |
+| Économie             | الاقتصاد           |
+| Chimie               | الكيمياء           |
+| Allemand             | الألمانية          |
+| Italien              | الإيطالية          |
+| Espagnol             | الإسبانية          |
+| Technologie          | التكنولوجيا        |
+| Gestion/Comptabilité | التصرف والمحاسبة   |
+| Éveil scientifique   | الإيقاظ العلمي     |
+
+| Plan (French) | Arabic (draft) |
+| ------------- | -------------- |
+| Mensuel       | شهري           |
+| Trimestriel   | ثلاثي          |
+| Semestriel    | سداسي          |
+| Annuel        | سنوي           |
+
 Language names in the switcher are always written in their own language: Français, العربية.
 
 The payment page helper lines (spec 4.3) are **not** in this glossary yet: they must be copied word for word from the owner's brief.

@@ -1,4 +1,4 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 // Load the private values (TEST_DATABASE_URL) when running on the owner's machine.

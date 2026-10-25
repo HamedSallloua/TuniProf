@@ -2,6 +2,22 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-25 (M1)
+
+- **Catalogue keys:** uuid primary key plus a unique `slug` on every catalogue (slug is used in URLs such as `/sfax/mathematiques` and by seed and import scripts). A database check forces slugs to be lowercase letters, digits and dashes.
+- **Names:** `name_fr` and `name_ar` columns on every catalogue. Arabic is optional only for délégations (the owner's list may not have it); the others are required.
+- **Levels:** French names follow the spec literally ("Primaire 1" ... "Université L3"), with `cycle` and `grade` columns so the profile form can offer group shortcuts (spec 4.2). 16 levels in total.
+- **"Autre" subject:** not a row. `subjects.status` is `approved` or `pending`; a teacher's own subject is added as `pending` at M3 until an admin approves it (M11).
+- **Plans:** columns `price_visibility_millimes` and `price_with_dashboard_millimes` (the bundle price, as in spec 2.1). The "add-on" price used for upgrades (spec 2.2) is derived (bundle minus visibility), never stored. Saving percentages are not stored either. Database check: bundle price is never below visibility-only.
+- **Seeds are migrations** (0003 to 0006), so a new server gets the same data from `npm run db:migrate`. They use `ON CONFLICT DO NOTHING`, so later admin edits are never overwritten.
+- **Délégations are not a migration**: they come from the owner's CSV through `npm run db:import:delegations`, as the spec asks. `db:reset` loads `db/data/delegations.csv` automatically when it exists. The import accepts `;` or `,` and finds the governorate by French name, slug or Arabic name.
+- **Delete rules:** a governorate with délégations cannot be deleted (foreign key). Catalogue rows are meant to be switched off with `is_active`, not deleted.
+- **Drizzle schema** (`lib/db/schema.ts`) mirrors the five tables; the SQL migrations stay the source of truth, and a test compares columns and nullability.
+- **Database tests check SQLSTATE codes**, never message text: the owner's PostgreSQL answers in French, so text matching broke.
+- **Catalogues have no row-level security** (public reference data). RLS comes with teacher data (M12).
+- **Windows lesson:** editing UTF-8 files with PowerShell 5.1 `Get-Content` / `Set-Content` corrupts accents and adds a BOM. It happened once to a test file (caught by the tests) and added a BOM to four small files (fixed). From now on files are edited only with the editor tools, never with PowerShell text commands.
+- **Arabic names** of governorates, levels, subjects and plans are a draft for the owner to review (GLOSSARY.md).
+
 ## 2026-10-25 (M0)
 
 ### Differences between SPEC.md and AGENT_CONTEXT.md, and the owner's rulings
