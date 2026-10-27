@@ -38,6 +38,9 @@ AGENT_CONTEXT and the spec differ in two small places, and the spec wins: (1) sp
 - **Home featured cities:** Tunis, Sfax, Sousse, Ariana, Ben Arous, Nabeul (spec section 11 says to start with Sfax, Tunis and Sousse); featured subjects are the first eight of the catalogue. Easy to change in `app/[locale]/page.tsx`.
 - **Dev helper:** `npm run dev:sample-teachers` (`scripts/dev-sample-teachers.ts`), development database only, bypasses the review queue and the founding offer. Not in the spec; added because there is no other way to see the public pages without an admin account and a full purchase. Alternative rejected: committing a seed migration (it would put fake teachers in production).
 - `FormCatalogue.delegations` now carries the `slug`, which the search needs.
+- **French wording of titles:** "Cours d'Anglais à Sfax", "Cours de Physique au Kef" (`lib/marketplace/french.ts`, tested). Messages use the placeholders `{subjectDe}` and `{governorateIn}` in both languages; in Arabic the helper returns the plain subject and "في" + the governorate.
+- **Grade ranges** ("1-4", "L1-L3") are wrapped in a left-to-right `<bdi>` so Arabic text does not reverse them.
+- **Report form** is sent by hand (`onSubmit` + `startTransition`) and not through the form's `action`, like the profile form of M3, so a refusal does not empty it.
 
 **Tests**
 

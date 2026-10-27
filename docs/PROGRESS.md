@@ -7,7 +7,7 @@
 - [x] M2 Accounts and WhatsApp verification (2026-10-26). Pushed, CI green.
 - [x] M3 Teacher profile and review queue (2026-10-26). Pushed, CI green.
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
-- [x] M5 Public marketplace (2026-10-27). Local commits, not pushed. Pages with teachers on them were NOT looked at in a browser (see below).
+- [x] M5 Public marketplace (2026-10-27). Local commits, not pushed. Checked in a browser with the sample teachers.
 
 ### M5 details
 
@@ -24,10 +24,16 @@
 
 ### Test results (2026-10-27, M5)
 
-- `npm test`: **525 passed, 0 skipped** (28 files), after `npm run db:reset:test`. New: 17 pure tests (parameters, ranking, levels, addresses), 26 database tests (hidden profiles never in search, profile page or sitemap for expired, paused, suspended, account suspended, missing field, waiting, refused; every filter; sorts; pagination; no phone in any result), 11 database tests (acceptance test 14, Turnstile from the 11th reveal, network-address limit, reports).
+- `npm test`: **527 passed, 0 skipped** (28 files), after `npm run db:reset:test`. New: 19 pure tests (parameters, ranking, levels, addresses), 26 database tests (hidden profiles never in search, profile page or sitemap for expired, paused, suspended, account suspended, missing field, waiting, refused; every filter; sorts; pagination; no phone in any result), 11 database tests (acceptance test 14, Turnstile from the 11th reveal, network-address limit, reports).
 - `npm run lint`, `typecheck`, `format:check`, `build`: pass. `npm audit`: 0 vulnerabilities.
-- Checked by hand in the browser (dev stub, no teachers in the development database): home, search page and its empty state, French and Arabic right-to-left layout, a search sent from the form (clean address `?gouvernorat=sfax&matiere=physique`, délégation list limited to Sfax), a landing page with nobody, the 404 pages (status 404 in both languages), `/comment-payer`, `/contact`, `/devenir-professeur` on a 375 px wide phone (no horizontal overflow), `sitemap.xml`, `robots.txt`, the CGU link on the sign-up page.
-- **NOT looked at in a browser:** the teacher card, the profile page, the reveal button, the Turnstile widget and the report form, because the development database has no visible teacher. Their data and rules are covered by the database tests, and the pages compile, but the screens themselves are unchecked. Run `npm run dev:sample-teachers`, then open `/recherche` and `/prof/wassima-chaaben-physique-sfax`.
+- Checked by hand in the browser (dev stub, with the 4 sample teachers of `npm run dev:sample-teachers`):
+  - Home, search page with its filters and empty state, search results (3 visible teachers; the expired one is absent), a search sent from the form (clean address, délégation list limited to the governorate).
+  - Profile page in French and Arabic (right-to-left): the phone number is not in the page source, "Voir les coordonnées" shows it with Call and WhatsApp links, 10 reveals work, the 11th asks for Turnstile (Cloudflare test widget), a second click then reveals it.
+  - "Signaler ce profil": "Autre" without a note is refused and the form keeps the chosen reason, with a note the report is sent.
+  - Landing pages `/sfax/physique` (indexed), `/sfax/anglais` (only an online teacher lives elsewhere, so `noindex`), `/le-kef/informatique` ("au Kef"), and the Arabic versions; `sitemap.xml` lists the 3 visible profiles and 5 landing pages in both languages and never the expired teacher; `robots.txt`; the 404 pages (status 404, both languages); `/comment-payer`, `/contact`, `/devenir-professeur` on a 375 px phone (no horizontal overflow); the CGU link on the sign-up page.
+- Bugs found in the browser and fixed: the report form forgot the chosen reason and the note after a refusal (React empties a form after an action; the form is now sent by hand, as in M3); French titles said "Cours de Anglais" and "à Le Kef" (now "Cours d'Anglais", "au Kef", see `lib/marketplace/french.ts`); a heading showed a raw message key; in Arabic a grade range such as 1-4 was shown reversed (now isolated left to right).
+- Not checked in a browser: the photo on a card and profile (the sample teachers have no photo; photo upload and storage were checked in M3), the home page with the sample teachers, the reveal button on a phone-sized screen, and the sign-in state of the header (no sign-in was made).
+- The 4 sample teachers, 11 reveal rows and 1 report made by this test are in your development database. `npm run dev:sample-teachers -- --remove` deletes the teachers and, with them, their rows.
 
 ### M4 details
 
@@ -79,7 +85,7 @@
 - Production: set `CRON_SECRET` on the host and make its scheduler call `/api/jobs/daily` once a day (`Authorization: Bearer <secret>`).
 - Real WhatsApp (not blocking): Meta Business setup, see the M2 notes.
 - First admin account: `npm run admin:create -- --role=admin_super` (you run it, so only you know the password).
-- **M5, to see the pages:** run `npm run db:migrate` (migration 0013), then `npm run dev:sample-teachers`, then `npm run dev`, and open `/recherche`, `/prof/wassima-chaaben-physique-sfax`, `/sfax/physique` (and the same under `/ar`). Tell me what looks wrong.
+- **M5, to look at the pages yourself:** `npm run dev`, then open `/recherche`, `/prof/wassima-chaaben-physique-sfax`, `/sfax/physique` (and the same under `/ar`). Tell me what looks wrong. When you are done: `npm run dev:sample-teachers -- --remove`.
 - **M5, Cloudflare Turnstile:** create a Turnstile widget in the Cloudflare dashboard and put the two keys in `.env.local` as `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. In development the always-pass test keys are used. In production without keys the check fails closed (after 10 reveals nobody can reveal more), so the keys are needed before launch.
 - **M5, contact page:** the real contact e-mail address (setting `contact.email`, then set `contact.configured` to true). Until then production shows "L'adresse de contact sera affichée prochainement."
 - **M5, domain:** set `SITE_URL` on the host (default in production: `https://tuniprof.tn`); it is used for canonical links and the sitemap.
@@ -97,6 +103,7 @@
 - Next.js dev prints a harmless "Unexpected end of JSON input" at the first request after starting `npm run dev` (a HEAD request); nothing is affected.
 - Reviewers land on the home page after signing in; the review form comes at M6.
 - The header now reads the session on every request, so no page is cached as static. Fine at this size; revisit at M12 (performance pass).
+- Opening the report form before the page has finished loading can print a harmless React "hydration" warning in the browser console (the `<details>` was opened before React took over).
 - Contact reveal needs JavaScript (the number is fetched on click), like the profile form.
 - The reviews block of the profile page only shows "Aucun avis pour le moment" until M6; `rating_avg` and `rating_count` stay 0 until then.
 - Reports ("Signaler ce profil") are stored in `reports` but there is no admin screen yet (M11). Reports about reviews are added at M6.
