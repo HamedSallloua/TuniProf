@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { BRAND_NAME } from '@/lib/brand';
 import { getPool } from '@/lib/db/client';
+import { deSubject, inGovernorate } from '@/lib/marketplace/french';
 import { getSitemapData } from '@/lib/marketplace/profile';
 import { countLocalTeachers, searchTeachers } from '@/lib/marketplace/search';
 import {
@@ -53,6 +54,21 @@ async function loadPage(governorateSlug: string, subjectSlug: string) {
   return { governorate: g, subject: s, local };
 }
 
+/** The names used in the titles, with the French elisions ("d'Anglais", "au Kef"). */
+function names(
+  page: NonNullable<Awaited<ReturnType<typeof loadPage>>>,
+  locale: string,
+) {
+  const subject = pickName(page.subject, locale);
+  const governorate = pickName(page.governorate, locale);
+  return {
+    subject,
+    governorate,
+    subjectDe: deSubject(subject, locale),
+    governorateIn: inGovernorate(governorate, locale),
+  };
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, gouvernorat, matiere } = await params;
   const page = await loadPage(gouvernorat, matiere);
@@ -63,8 +79,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     namespace: 'landing',
   });
   const values = {
-    subject: pickName(page.subject, locale),
-    governorate: pickName(page.governorate, locale),
+    ...names(page, locale),
     brand: BRAND_NAME,
   };
   return {
@@ -90,10 +105,7 @@ export default async function LandingPage({ params }: Props) {
     searchTeachers(getPool(), filters),
     getSitemapData(getPool()),
   ]);
-  const values = {
-    subject: pickName(page.subject, locale),
-    governorate: pickName(page.governorate, locale),
-  };
+  const values = names(page, locale);
 
   // Links to the sister pages that really have teachers (also good for search engines).
   const catalogue = await getPool().query<{
@@ -181,7 +193,7 @@ export default async function LandingPage({ params }: Props) {
             id="other-subjects"
             className="text-lg font-semibold text-primary"
           >
-            {t('otherSubjects', { governorate: values.governorate })}
+            {t('otherSubjects', { governorateIn: values.governorateIn })}
           </h2>
           <ul className="mt-3 flex flex-wrap gap-3">
             {otherSubjects.map((l) => (

@@ -97,12 +97,14 @@ export async function TeacherCard({
 
         {levels.length > 0 && (
           <p className="text-sm text-muted">
-            {levels
-              .map(
-                (group) =>
-                  `${options(`cycle.${group.cycle}` as 'cycle.primaire')} ${group.grades}`,
-              )
-              .join(' · ')}
+            {levels.map((group, index) => (
+              <span key={group.cycle}>
+                {index > 0 && ' · '}
+                {options(`cycle.${group.cycle}` as 'cycle.primaire')}{' '}
+                {/* digits stay left to right inside Arabic text */}
+                <bdi dir="ltr">{group.grades}</bdi>
+              </span>
+            ))}
           </p>
         )}
 

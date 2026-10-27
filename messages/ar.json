@@ -634,7 +634,7 @@
     "onlineOnly": "عبر الإنترنت"
   },
   "publicProfile": {
-    "metaTitle": "{name}، أستاذ في {governorate} | {brand}",
+    "metaTitle": "{name}، أستاذ {governorateIn} | {brand}",
     "back": "العودة إلى البحث",
     "experience": "الخبرة: {value}",
     "rating": "التقييم {avg} من 5 ({count} تقييم)",
@@ -691,14 +691,14 @@
     }
   },
   "landing": {
-    "title": "دروس {subject} في {governorate}",
-    "metaTitle": "دروس {subject} في {governorate}: أساتذة خصوصيون | {brand}",
-    "metaDescription": "اعثر على أستاذ خصوصي لمادة {subject} في {governorate}. ملفات تتم مراجعتها قبل النشر، وأسعار بالساعة وتقييمات.",
-    "intro": "اعثر على أستاذ {subject} في {governorate}. قارن الملفات والأسعار ثم تواصل مباشرة مع الأستاذ.",
-    "noLocal": "لا يوجد بعد أستاذ {subject} في {governorate}. إليك الأساتذة الذين يقدمون دروسًا عبر الإنترنت.",
+    "title": "دروس {subjectDe} {governorateIn}",
+    "metaTitle": "دروس {subjectDe} {governorateIn}: أساتذة خصوصيون | {brand}",
+    "metaDescription": "اعثر على أستاذ خصوصي لمادة {subjectDe} {governorateIn}. ملفات تتم مراجعتها قبل النشر، وأسعار بالساعة وتقييمات.",
+    "intro": "اعثر على أستاذ {subjectDe} {governorateIn}. قارن الملفات والأسعار ثم تواصل مباشرة مع الأستاذ.",
+    "noLocal": "لا يوجد بعد أستاذ {subjectDe} {governorateIn}. إليك الأساتذة الذين يقدمون دروسًا عبر الإنترنت.",
     "refine": "تحسين البحث",
     "otherCities": "{subject} في ولايات أخرى",
-    "otherSubjects": "مواد أخرى في {governorate}"
+    "otherSubjects": "مواد أخرى {governorateIn}"
   },
   "pages": {
     "becomeTeacher": {

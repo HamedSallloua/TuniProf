@@ -1,21 +1,11 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useActionState, useTransition, type FormEvent } from 'react';
 import { buttonClass, inputClass } from '@/components/auth/styles';
 import { reportAction } from '@/app/[locale]/(public)/contact-actions';
 import type { ReportState } from '@/lib/marketplace/action-state';
 import { REPORT_REASONS } from '@/lib/marketplace/report-reasons';
-
-function Submit({ label }: { label: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" disabled={pending} className={buttonClass}>
-      {label}
-    </button>
-  );
-}
 
 /** "Signaler ce profil" (spec 3.4): a short form that opens under the link. */
 export function ReportForm({ slug }: { slug: string }) {
@@ -24,6 +14,16 @@ export function ReportForm({ slug }: { slug: string }) {
     reportAction,
     null,
   );
+  const [pending, startTransition] = useTransition();
+
+  // Sent by hand instead of through the form's `action`: React empties a form after an
+  // action, which would forget the chosen reason and the note when the server asks for a
+  // correction (same lesson as the profile form, M3).
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startTransition(() => action(data));
+  }
 
   return (
     <details className="rounded-card border border-border bg-surface p-4">
@@ -36,7 +36,7 @@ export function ReportForm({ slug }: { slug: string }) {
           {t('sent')}
         </p>
       ) : (
-        <form action={action} className="mt-3 space-y-4">
+        <form onSubmit={onSubmit} className="mt-3 space-y-4">
           <input type="hidden" name="slug" value={slug} />
           <p className="text-sm text-muted">{t('intro')}</p>
 
@@ -78,7 +78,9 @@ export function ReportForm({ slug }: { slug: string }) {
               {t(`errors.${state.error}` as 'errors.generic')}
             </p>
           )}
-          <Submit label={t('submit')} />
+          <button type="submit" disabled={pending} className={buttonClass}>
+            {t('submit')}
+          </button>
         </form>
       )}
     </details>

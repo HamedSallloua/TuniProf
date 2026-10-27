@@ -12,6 +12,7 @@ import type { Locale } from '@/i18n/routing';
 import { BRAND_NAME } from '@/lib/brand';
 import { getPool } from '@/lib/db/client';
 import { getSiteUrl, getTurnstileConfig } from '@/lib/env';
+import { inGovernorate } from '@/lib/marketplace/french';
 import { summarizeLevels } from '@/lib/marketplace/levels';
 import { getPublicProfile } from '@/lib/marketplace/profile';
 import { formatMillimes } from '@/lib/money';
@@ -39,7 +40,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: t('metaTitle', {
       name: profile.fullName,
-      governorate: pickName(profile.governorate, locale),
+      governorateIn: inGovernorate(
+        pickName(profile.governorate, locale),
+        locale,
+      ),
       brand: BRAND_NAME,
     }),
     description: excerpt(profile.bio),
@@ -234,7 +238,7 @@ export default async function ProfilePage({ params }: Props) {
                   className="rounded-full border border-border bg-surface px-3 py-1 text-sm"
                 >
                   {options(`cycle.${group.cycle}` as 'cycle.primaire')}{' '}
-                  {group.grades}
+                  <bdi dir="ltr">{group.grades}</bdi>
                 </li>
               ))}
             </ul>

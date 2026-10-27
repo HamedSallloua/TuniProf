@@ -634,7 +634,7 @@
     "onlineOnly": "En ligne"
   },
   "publicProfile": {
-    "metaTitle": "{name}, professeur à {governorate} | {brand}",
+    "metaTitle": "{name}, professeur {governorateIn} | {brand}",
     "back": "Retour à la recherche",
     "experience": "Expérience : {value}",
     "rating": "Note {avg} sur 5 ({count} avis)",
@@ -691,14 +691,14 @@
     }
   },
   "landing": {
-    "title": "Cours de {subject} à {governorate}",
-    "metaTitle": "Cours de {subject} à {governorate} : professeurs particuliers | {brand}",
-    "metaDescription": "Trouvez un professeur particulier de {subject} à {governorate}. Profils examinés avant publication, tarifs par heure et avis.",
-    "intro": "Trouvez un professeur de {subject} à {governorate}. Comparez les profils et les tarifs, puis contactez directement le professeur.",
-    "noLocal": "Il n'y a pas encore de professeur de {subject} à {governorate}. Voici les professeurs qui donnent des cours en ligne.",
+    "title": "Cours {subjectDe} {governorateIn}",
+    "metaTitle": "Cours {subjectDe} {governorateIn} : professeurs particuliers | {brand}",
+    "metaDescription": "Trouvez un professeur particulier {subjectDe} {governorateIn}. Profils examinés avant publication, tarifs par heure et avis.",
+    "intro": "Trouvez un professeur {subjectDe} {governorateIn}. Comparez les profils et les tarifs, puis contactez directement le professeur.",
+    "noLocal": "Il n'y a pas encore de professeur {subjectDe} {governorateIn}. Voici les professeurs qui donnent des cours en ligne.",
     "refine": "Affiner la recherche",
     "otherCities": "{subject} dans d'autres villes",
-    "otherSubjects": "Autres matières à {governorate}"
+    "otherSubjects": "Autres matières {governorateIn}"
   },
   "pages": {
     "becomeTeacher": {

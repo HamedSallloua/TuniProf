@@ -265,3 +265,22 @@ describe('page addresses', () => {
     expect(alternates.languages['x-default']).toBe(pageUrl('fr', '/recherche'));
   });
 });
+
+describe('French elisions', () => {
+  it('writes "d\'" before a vowel or a silent h, "de" otherwise', async () => {
+    const { deSubject } = await import('@/lib/marketplace/french');
+    expect(deSubject('Anglais', 'fr')).toBe("d'Anglais");
+    expect(deSubject('Économie', 'fr')).toBe("d'Économie");
+    expect(deSubject('Histoire-Géo', 'fr')).toBe("d'Histoire-Géo");
+    expect(deSubject('Physique', 'fr')).toBe('de Physique');
+    expect(deSubject('Anglais', 'ar')).toBe('Anglais');
+  });
+
+  it('writes "à Sfax" but "au Kef"', async () => {
+    const { inGovernorate } = await import('@/lib/marketplace/french');
+    expect(inGovernorate('Sfax', 'fr')).toBe('à Sfax');
+    expect(inGovernorate('Le Kef', 'fr')).toBe('au Kef');
+    expect(inGovernorate('Ben Arous', 'fr')).toBe('à Ben Arous');
+    expect(inGovernorate('صفاقس', 'ar')).toBe('في صفاقس');
+  });
+});
