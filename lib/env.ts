@@ -67,3 +67,35 @@ export function getWhatsAppConfig() {
     verifyToken: parsed.data.WHATSAPP_VERIFY_TOKEN,
   };
 }
+
+/** Public address of the site, without a trailing slash: canonical links and the sitemap. */
+export function getSiteUrl(): string {
+  const fromEnv = process.env.SITE_URL?.trim().replace(/\/+$/, '');
+  if (fromEnv && /^https?:\/\//.test(fromEnv)) return fromEnv;
+  return process.env.NODE_ENV === 'production'
+    ? 'https://tuniprof.tn'
+    : 'http://localhost:3000';
+}
+
+// Cloudflare publishes keys that always pass, for development (they never run in production).
+const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA';
+const TURNSTILE_TEST_SECRET_KEY = '1x0000000000000000000000000000000AA';
+
+/**
+ * Cloudflare Turnstile keys (spec 3.4). In development the always-pass test keys are used
+ * when none are set. In production without keys this returns null and the check fails
+ * closed: nobody can pass it, so a bot cannot get past the reveal limit.
+ */
+export function getTurnstileConfig(): {
+  siteKey: string;
+  secretKey: string;
+} | null {
+  const siteKey = process.env.TURNSTILE_SITE_KEY?.trim();
+  const secretKey = process.env.TURNSTILE_SECRET_KEY?.trim();
+  if (siteKey && secretKey) return { siteKey, secretKey };
+  if (process.env.NODE_ENV === 'production') return null;
+  return {
+    siteKey: TURNSTILE_TEST_SITE_KEY,
+    secretKey: TURNSTILE_TEST_SECRET_KEY,
+  };
+}

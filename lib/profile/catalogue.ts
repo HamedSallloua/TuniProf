@@ -6,7 +6,7 @@ export type NamedItem = { id: string; nameFr: string; nameAr: string | null };
 
 export type FormCatalogue = {
   governorates: (NamedItem & { slug: string })[];
-  delegations: (NamedItem & { governorateId: string })[];
+  delegations: (NamedItem & { governorateId: string; slug: string })[];
   levels: (NamedItem & { slug: string; cycle: string; grade: number })[];
   subjects: (NamedItem & { slug: string })[];
   rateRange: RateRange;
@@ -37,7 +37,7 @@ export async function getFormCatalogue(db: Queryable): Promise<FormCatalogue> {
       `SELECT id, slug, name_fr, name_ar FROM governorates WHERE is_active ORDER BY sort_order`,
     ),
     db.query(
-      `SELECT id, governorate_id, name_fr, name_ar FROM delegations
+      `SELECT id, governorate_id, slug, name_fr, name_ar FROM delegations
        WHERE is_active ORDER BY name_fr`,
     ),
     db.query(
@@ -62,6 +62,7 @@ export async function getFormCatalogue(db: Queryable): Promise<FormCatalogue> {
     delegations: del.rows.map((r) => ({
       id: r.id,
       governorateId: r.governorate_id,
+      slug: r.slug,
       nameFr: r.name_fr,
       nameAr: r.name_ar,
     })),
