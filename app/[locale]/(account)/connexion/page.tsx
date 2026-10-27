@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Locale } from '@/i18n/routing';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { LoginForm } from '@/components/auth/forms';
-import { linkClass } from '@/components/auth/ui';
+import { linkClass } from '@/components/auth/styles';
 import { Link } from '@/i18n/navigation';
 
 export const metadata: Metadata = { robots: { index: false } };

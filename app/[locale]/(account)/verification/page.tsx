@@ -6,11 +6,8 @@ import {
   AutoRefresh,
   AutoSubmitForm,
 } from '@/components/auth/VerificationHelpers';
-import {
-  SubmitButton,
-  buttonClass,
-  secondaryButtonClass,
-} from '@/components/auth/ui';
+import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
+import { SubmitButton } from '@/components/auth/ui';
 import { Link, redirect } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { getDeviceContext } from '@/lib/auth/device';

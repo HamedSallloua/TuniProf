@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { numTag } from '@/components/auth/num-tag';
-import { buttonClass, secondaryButtonClass } from '@/components/auth/ui';
+import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
 import { StatusBanner } from '@/components/profile/StatusBanner';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
@@ -29,6 +29,7 @@ export default async function TeacherHomePage({
 
   const t = await getTranslations('profile');
   const ta = await getTranslations('auth.space');
+  const tsub = await getTranslations('subscription');
   const profile = await loadProfile(getPool(), user.id);
   const status = profile?.status ?? 'draft';
 
@@ -102,9 +103,15 @@ export default async function TeacherHomePage({
       )}
 
       {status !== 'suspended' && (
-        <p>
+        <p className="flex flex-wrap gap-3">
           <Link href="/espace-professeur/profil" className={buttonClass}>
             {editLabel}
+          </Link>
+          <Link
+            href="/espace-professeur/abonnement"
+            className={secondaryButtonClass}
+          >
+            {tsub('link')}
           </Link>
         </p>
       )}
@@ -129,9 +136,6 @@ export default async function TeacherHomePage({
                 : t('home.listingResume')}
             </button>
           </form>
-          <p className="mt-3 text-sm text-muted">
-            {t('home.subscriptionSoon')}
-          </p>
         </section>
       )}
 

@@ -63,6 +63,7 @@
     "signup": {
       "title": "Créer un compte professeur",
       "intro": "Votre profil restera masqué tant qu'un abonnement n'est pas actif. Nous vérifions votre numéro par WhatsApp.",
+      "founding": "Offre fondateurs : il reste {count} places pour un an offert, appliqué à l'approbation de votre profil.",
       "submit": "Continuer",
       "haveAccount": "Vous avez déjà un compte ?",
       "loginLink": "Se connecter"
@@ -266,7 +267,6 @@
       "completeProfile": "Compléter mon profil",
       "editProfile": "Modifier mon profil",
       "fixProfile": "Corriger mon profil",
-      "subscriptionSoon": "L'abonnement pour apparaître dans les résultats arrive bientôt.",
       "listingTitle": "Affichage public",
       "listingOn": "Votre profil est affiché dans les résultats (une fois visible).",
       "listingOff": "Vous avez mis votre affichage en pause.",
@@ -301,6 +301,185 @@
       "approved": "Approuvé",
       "rejected": "Refusé",
       "suspended": "Suspendu"
+    }
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "link": "Mon abonnement",
+    "status": {
+      "visibility": "Visibilité de mon profil",
+      "dashboard": "Dashboard",
+      "until": "jusqu'au {date}",
+      "daysLeft": "{days} jours restants",
+      "none": "Aucun abonnement actif",
+      "expired": "Terminé le {date}",
+      "readOnly": "Lecture seule avec export jusqu'au {date}",
+      "creditVisibility": "{days} jours de visibilité déjà achetés démarreront quand votre profil sera approuvé.",
+      "creditDashboard": "{days} jours de Dashboard déjà achetés démarreront quand votre profil sera approuvé.",
+      "founding": "Offre fondateurs : un an offert, appliqué à l'approbation de votre profil."
+    },
+    "plans": {
+      "title": "Choisissez votre formule",
+      "dashboardOption": "Ajouter le Dashboard (groupes, élèves, paiements, statistiques)",
+      "perMonth": "{price} par mois",
+      "saving": "{percent} % d'économie",
+      "days": "{days} jours",
+      "methodTitle": "Choisissez votre méthode de paiement",
+      "create": "Créer ma demande de paiement",
+      "renewHint": "Renouveler en avance ne fait perdre aucun jour : la nouvelle période commence à la fin de la précédente."
+    },
+    "methods": {
+      "flouci": "Flouci",
+      "d17": "D17 / e-Dinar",
+      "ccp": "Versement poste / CCP"
+    },
+    "request": {
+      "title": "Ma demande en cours",
+      "reference": "Référence",
+      "amount": "Montant",
+      "plan": "Formule",
+      "method": "Méthode",
+      "withDashboard": "avec Dashboard",
+      "upgrade": "Ajout du Dashboard",
+      "viewInstructions": "Voir comment payer",
+      "cancel": "Annuler la demande",
+      "history": "Historique des demandes"
+    },
+    "requestStatus": {
+      "pending": "En attente de paiement",
+      "proof_received": "Preuve reçue, vérification en cours",
+      "verified": "Paiement vérifié",
+      "rejected": "Refusée",
+      "cancelled": "Annulée"
+    },
+    "upgrade": {
+      "title": "Ajouter le Dashboard à mon abonnement",
+      "body": "Vous obtenez le Dashboard pour les {days} jours qui restent à votre visibilité.",
+      "price": "Prix : {price}",
+      "create": "Demander l'ajout du Dashboard"
+    },
+    "code": {
+      "title": "Entrer mon code d'activation",
+      "hint": "Le code ressemble à TTP-XXXX-XXXX-XXXX. Il vous est envoyé après la vérification de votre paiement.",
+      "label": "Code d'activation",
+      "submit": "Activer",
+      "yours": "Votre code d'activation",
+      "yoursHint": "Votre paiement est vérifié. Recopiez ce code dans le champ ci-dessous pour activer votre abonnement.",
+      "expires": "Valable jusqu'au {date}",
+      "successNow": "Abonnement activé. Votre profil reste visible jusqu'au {date}.",
+      "successCredit": "Code enregistré. Vos jours démarreront quand votre profil sera approuvé.",
+      "errors": {
+        "invalid": "Code invalide.",
+        "used": "Ce code a déjà été utilisé.",
+        "revoked": "Ce code a été annulé. Contactez-nous.",
+        "expired": "Ce code a expiré. Contactez-nous.",
+        "suspended": "Votre profil est suspendu : le code est conservé.",
+        "locked": "Trop d'essais incorrects. Réessayez dans {minutes} min."
+      }
+    },
+    "errors": {
+      "unavailable": "Le paiement n'est pas encore disponible. Revenez bientôt.",
+      "invalid_plan": "Formule invalide.",
+      "invalid_method": "Méthode de paiement invalide.",
+      "open_request_exists": "Vous avez déjà une demande en cours.",
+      "not_available": "Cette option n'est pas disponible pour votre abonnement.",
+      "generic": "Une erreur est survenue. Réessayez."
+    },
+    "instructions": {
+      "title": "Comment payer",
+      "back": "Retour à l'abonnement",
+      "intro": "Payez exactement <num>{amount}</num> avec la référence <num>{reference}</num>.",
+      "referenceNote": "Écrivez la référence sur votre paiement.",
+      "flouci": "Envoyez le montant exact par Flouci au numéro <num>{number}</num>. Bénéficiaire : {name}.",
+      "d17": "Payez avec D17 / e-Dinar : {info}. Bénéficiaire : {name}.",
+      "ccp": "Versement à la poste ou virement CCP. Bénéficiaire : {name}. CCP : <num>{number}</num>. Gardez le reçu.",
+      "proofTitle": "Envoyez la preuve de paiement",
+      "proofBody": "Une capture d'écran ou la photo du reçu suffit. Le message est déjà écrit.",
+      "whatsapp": "Envoyer la preuve sur WhatsApp",
+      "messenger": "Envoyer la preuve sur Messenger",
+      "copyMessage": "Copier le message",
+      "copied": "Message copié.",
+      "messengerHint": "Messenger ne remplit pas le message : copiez-le, puis collez-le.",
+      "proofMessage": "Bonjour, je souhaite activer mon profil {brand}. Téléphone : {phone}. Référence : {reference}. Formule : {plan}. Montant : {amount}.",
+      "hours": "Nous répondons généralement sous 1 heure pendant nos horaires ({hours}). En dehors, nous répondons le lendemain matin.",
+      "demo": "Valeurs de démonstration : les vrais moyens de paiement ne sont pas encore renseignés.",
+      "nextTitle": "Ensuite",
+      "nextBody": "Après vérification, vous recevez un code d'activation (par WhatsApp ou Messenger, et dans la page Abonnement). Entrez-le pour activer votre profil.",
+      "footer": "Le paiement automatique en ligne arrive bientôt ; cette méthode manuelle garantit une activation rapide et sûre.",
+      "closed": "Cette demande n'est plus ouverte."
+    }
+  },
+  "adminPayments": {
+    "title": "Paiements",
+    "link": "Paiements à vérifier",
+    "empty": "Aucune demande de paiement ouverte.",
+    "unnamed": "(profil non rempli)",
+    "showAll": "Voir toutes les demandes",
+    "showOpen": "Voir seulement les demandes ouvertes",
+    "kind": { "plan": "Nouvelle formule", "upgrade": "Ajout du Dashboard" },
+    "detail": {
+      "back": "Retour aux paiements",
+      "teacher": "Professeur",
+      "phone": "Téléphone",
+      "profile": "Profil",
+      "plan": "Formule",
+      "amount": "Montant attendu",
+      "method": "Méthode",
+      "reference": "Référence",
+      "status": "Statut",
+      "created": "Demande du",
+      "transaction": "Transaction",
+      "note": "Note",
+      "code": "Code d'activation",
+      "codeStatus": "État du code",
+      "none": "Aucun"
+    },
+    "codeStatus": {
+      "issued": "Émis, pas encore utilisé",
+      "redeemed": "Utilisé",
+      "revoked": "Annulé",
+      "expired": "Expiré"
+    },
+    "checklist": {
+      "title": "À vérifier à chaque paiement",
+      "1": "La référence (ou le numéro de téléphone) de la preuve correspond à une demande ouverte.",
+      "2": "Le montant est celui de la formule, avec le Dashboard s'il a été choisi.",
+      "3": "L'argent est bien visible dans l'historique Flouci / CCP / D17. N'acceptez jamais une capture d'écran seule : elle peut être falsifiée.",
+      "4": "Le numéro et la date de transaction sont nouveaux. Notez-les : la même preuve ne sert pas deux fois.",
+      "5": "Générez le code pour cette demande, envoyez-le, et le paiement passe à « vérifié ».",
+      "6": "Hors des horaires de réponse, annoncez « le lendemain matin »."
+    },
+    "form": {
+      "transactionRef": "Numéro de transaction",
+      "transactionDate": "Date de la transaction",
+      "note": "Note (facultatif)",
+      "rejectNote": "Motif du refus (obligatoire)",
+      "revokeReason": "Motif de l'annulation (obligatoire)"
+    },
+    "actions": {
+      "proof": "Marquer : preuve reçue",
+      "issue": "Paiement vérifié : générer le code",
+      "reject": "Refuser la demande",
+      "revoke": "Annuler le code"
+    },
+    "codeBox": {
+      "title": "Code à envoyer au professeur",
+      "hint": "Envoyez ce message par WhatsApp ou Messenger. Le code est aussi visible dans l'espace du professeur.",
+      "message": "Bonjour, votre paiement (référence {reference}) est vérifié. Votre code d'activation {brand} : {code}. Entrez-le dans votre espace professeur, page Abonnement."
+    },
+    "flash": {
+      "proof": "Preuve marquée comme reçue.",
+      "issued": "Code généré. Envoyez-le au professeur.",
+      "rejected": "Demande refusée.",
+      "revoked": "Code annulé."
+    },
+    "errors": {
+      "forbidden": "Action non autorisée.",
+      "not_found": "Demande introuvable.",
+      "invalid_state": "Cette action n'est plus possible : la demande a changé.",
+      "invalid_input": "Vérifiez les champs (numéro, date, note).",
+      "transaction_reused": "Ce numéro de transaction a déjà servi. La même preuve ne peut pas payer deux fois.",
+      "generic": "Une erreur est survenue."
     }
   },
   "admin": {

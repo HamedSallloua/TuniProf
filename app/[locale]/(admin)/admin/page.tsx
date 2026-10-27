@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { numTag } from '@/components/auth/num-tag';
-import { buttonClass, secondaryButtonClass } from '@/components/auth/ui';
+import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requirePermission } from '@/lib/auth/current-user';
 import { getPool } from '@/lib/db/client';
 import { formatNationalPhone } from '@/lib/phone';
+import { listPaymentRequests } from '@/lib/billing/payments';
 import { listReviewQueue } from '@/lib/profile/review';
 import { logoutAction } from '../../(account)/actions';
 
@@ -23,7 +24,9 @@ export default async function AdminPage({
   const user = await requirePermission('admin:panel', locale as Locale);
   const t = await getTranslations('auth.space');
   const ta = await getTranslations('admin');
+  const tp = await getTranslations('adminPayments');
   const waiting = (await listReviewQueue(getPool())).length;
+  const openPayments = (await listPaymentRequests(getPool(), 'open')).length;
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:py-12">
@@ -43,9 +46,12 @@ export default async function AdminPage({
         </p>
       </header>
 
-      <p>
+      <p className="flex flex-wrap gap-3">
         <Link href="/admin/profils" className={buttonClass}>
           {ta('queueLink')} ({waiting})
+        </Link>
+        <Link href="/admin/paiements" className={buttonClass}>
+          {tp('link')} ({openPayments})
         </Link>
       </p>
 

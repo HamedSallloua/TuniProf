@@ -2,20 +2,9 @@
 
 import { useTranslations } from 'next-intl';
 import { useFormStatus } from 'react-dom';
+import { buttonClass, inputClass } from './styles';
 
 // Small building blocks shared by the account forms.
-
-export const inputClass =
-  'block w-full min-h-11 rounded-md border border-border bg-surface px-3 py-2 text-foreground aria-[invalid=true]:border-accent aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-accent';
-
-export const buttonClass =
-  'inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 font-medium text-primary-foreground hover:bg-accent disabled:opacity-60';
-
-export const secondaryButtonClass =
-  'inline-flex min-h-11 items-center justify-center rounded-md border border-primary bg-surface px-5 font-medium text-primary hover:bg-secondary';
-
-export const linkClass =
-  'text-primary underline underline-offset-2 hover:text-accent';
 
 /** Translates an error key from auth.errors. */
 export function ErrorText({

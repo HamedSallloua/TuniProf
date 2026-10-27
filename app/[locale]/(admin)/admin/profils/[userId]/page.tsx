@@ -10,7 +10,7 @@ import {
   buttonClass,
   inputClass,
   secondaryButtonClass,
-} from '@/components/auth/ui';
+} from '@/components/auth/styles';
 import { Link, redirect } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requirePermission } from '@/lib/auth/current-user';

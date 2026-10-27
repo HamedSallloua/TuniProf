@@ -9,7 +9,7 @@ import {
   buttonClass,
   inputClass,
   secondaryButtonClass,
-} from '@/components/auth/ui';
+} from '@/components/auth/styles';
 import type { FieldError, ProfileFormValues } from '@/lib/profile/form';
 import {
   DIPLOMAS,
