@@ -15,6 +15,7 @@
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/db-migrate.ts",
     "db:reset": "tsx --env-file-if-exists=.env.local scripts/db-reset.ts",
     "db:import:delegations": "tsx --env-file-if-exists=.env.local scripts/db-import-delegations.ts",
+    "job:daily": "tsx --env-file-if-exists=.env.local scripts/run-daily-job.ts",
     "admin:create": "tsx --env-file-if-exists=.env.local scripts/create-admin.ts",
     "db:migrate:test": "tsx --env-file-if-exists=.env.local scripts/db-migrate.ts --test",
     "db:reset:test": "tsx --env-file-if-exists=.env.local scripts/db-reset.ts --test"

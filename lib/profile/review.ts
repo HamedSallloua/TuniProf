@@ -1,6 +1,9 @@
 import type { Pool, PoolClient } from 'pg';
 import { withTransaction, type Queryable } from '@/lib/db/transaction';
+import { isActiveAdmin } from '@/lib/auth/admin';
 import { slugify } from '@/lib/slug';
+import { startCredit } from '@/lib/billing/entitlements';
+import { tryGrantFounding } from '@/lib/billing/founding';
 import { loadProfile, type TeacherProfile } from './repo';
 import { isRejectionReason } from './rules';
 
@@ -93,18 +96,6 @@ export async function loadForReview(
 }
 
 // ------------------------------------------------------------------------------ helpers
-
-async function isActiveAdmin(
-  client: Queryable,
-  actorId: string,
-): Promise<boolean> {
-  const { rows } = await client.query(
-    `SELECT 1 FROM users
-     WHERE id = $1 AND role IN ('admin_super', 'admin_support') AND status = 'active'`,
-    [actorId],
-  );
-  return rows.length === 1;
-}
 
 type Locked = {
   status: string;
@@ -224,15 +215,24 @@ export async function approveProfile(
          WHERE user_id = $1`,
         [userId, slug, now, actorId],
       );
+      // In the same transaction (invariants 3 and 6): days bought before approval start now,
+      // and the founding offer is applied automatically if a slot is left.
+      const credit = await startCredit(client, userId, now);
+      const founding = await tryGrantFounding(client, userId, now);
       await audit(
         client,
         actorId,
         'profile.approve',
         userId,
-        { from: 'pending', to: 'approved', slug },
+        {
+          from: 'pending',
+          to: 'approved',
+          slug,
+          creditStarted: credit,
+          foundingGranted: founding.granted,
+        },
         now,
       );
-      // M4 hooks in here: credit already paid is started, and the founding offer is applied.
       return { ok: true, slug } as const;
     });
   } catch (error) {

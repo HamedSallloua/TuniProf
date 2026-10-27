@@ -3,6 +3,19 @@ import { hashPassword } from './password';
 
 export type AdminRole = 'admin_super' | 'admin_support';
 
+/** Is this user an active admin? Every admin action checks it again in the database. */
+export async function isActiveAdmin(
+  db: Pick<Pool, 'query'>,
+  actorId: string,
+): Promise<boolean> {
+  const { rows } = await db.query(
+    `SELECT 1 FROM users
+     WHERE id = $1 AND role IN ('admin_super', 'admin_support') AND status = 'active'`,
+    [actorId],
+  );
+  return rows.length === 1;
+}
+
 /**
  * Creates an admin account, already active and verified: admins are created by the owner
  * from the command line (npm run admin:create), never through the public sign-up.

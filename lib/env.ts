@@ -26,6 +26,14 @@ export function getAuthSecret(): string {
   return parsed.data;
 }
 
+/** Secret the host's cron sends to run the daily job. Without it the job endpoint is off. */
+export function getCronSecret(): string {
+  const parsed = z.string().min(16).safeParse(process.env.CRON_SECRET);
+  if (!parsed.success)
+    throw new Error('CRON_SECRET is missing or shorter than 16 characters.');
+  return parsed.data;
+}
+
 export type VerificationProviderName = 'dev-stub' | 'whatsapp';
 
 /**

@@ -28,6 +28,12 @@ export function device(name = 'a'): DeviceContext {
 export async function clearAuthTables(pool: Pool): Promise<void> {
   for (const table of [
     'audit_log',
+    // billing: in the order their foreign keys allow
+    'entitlement_grants',
+    'founding_claims',
+    'activation_codes',
+    'payment_requests',
+    'entitlements',
     'teacher_profiles', // its levels, zones and subjects go with it
     'auth_sessions',
     'otp_challenges',
@@ -39,6 +45,19 @@ export async function clearAuthTables(pool: Pool): Promise<void> {
   }
   // Subjects typed by teachers ("Autre") are test leftovers, not catalogue.
   await pool.query("DELETE FROM subjects WHERE status = 'pending'");
+  // Settings that tests change go back to their defaults.
+  await pool.query(
+    `UPDATE settings SET value = '0' WHERE key = 'founding.slots_used'`,
+  );
+  await pool.query(
+    `UPDATE settings SET value = '100' WHERE key = 'founding.slots_total'`,
+  );
+  await pool.query(
+    `UPDATE settings SET value = 'true' WHERE key IN ('founding.grant_visibility', 'founding.grant_dashboard')`,
+  );
+  await pool.query(
+    `UPDATE settings SET value = 'false' WHERE key = 'payment.configured'`,
+  );
 }
 
 let messageCounter = 0;
