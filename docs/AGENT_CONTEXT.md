@@ -71,6 +71,7 @@ and finish with the "done when" checklist ticked item by item.
 | `docs/PROGRESS.md` | Milestone checklist, what is done, what is next, known bugs, blockers | After **every** work session and milestone |
 | `docs/DECISIONS.md` | Dated log of every choice not fixed by the spec (what, why, alternatives) | Whenever you decide something |
 | `docs/GLOSSARY.md` | French/Arabic UI strings and domain terms used (optional, grows over time) | When you add UI text |
+| `docs/PRE_PRODUCTION_NOTES.md` | Everything to do, decide or check before production (owner items, services, environment variables, settings, code still to write, security, final checks) | In **every** session that changes something relevant, plus its change log |
 
 `docs/PROGRESS.md` format:
 

@@ -1,4 +1,6 @@
-## Status: M5 done locally, waiting for the owner's review and "go" for M6 (updated 2026-10-27)
+## Status: M5 done and pushed, waiting for the owner's "go" for M6 (updated 2026-10-27)
+
+Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
 ### Done
 
@@ -7,7 +9,7 @@
 - [x] M2 Accounts and WhatsApp verification (2026-10-26). Pushed, CI green.
 - [x] M3 Teacher profile and review queue (2026-10-26). Pushed, CI green.
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
-- [x] M5 Public marketplace (2026-10-27). Local commits, not pushed. Checked in a browser with the sample teachers.
+- [x] M5 Public marketplace (2026-10-27). Pushed. Checked in a browser with the sample teachers.
 
 ### M5 details
 
@@ -77,11 +79,11 @@
 
 ### Blockers waiting on owner
 
-- Review the Arabic drafts: `messages/ar.json` (all of `profile` and `admin`), the 8 refusal reason templates, and the Arabic name "الحبيب ثامر بوعطوش" (Gabès).
+(The full list, with exact steps, is in `docs/PRE_PRODUCTION_NOTES.md`. Arabic texts up to M5 were approved by the owner on 2026-10-27.)
+
 - Confirm the contact rule is not too strict: a bio that mentions WhatsApp, Facebook, Instagram, Telegram, TikTok, Snapchat, Messenger or Viber is refused (and phone numbers, links, e-mails, @handles). Years like "2015-2020" are allowed.
 - **Payments (needed before going live):** the Arabic payment helper lines, word for word (not in `docs/SPEC.md`; stored in setting `payment.helper_lines_ar`, empty until you send them). Also beneficiary name, Flouci number, CCP number, D17 details and working hours. All are placeholders in the `settings` table; in production payments stay hidden until `payment.configured` is set to true.
 - Confirm that the founding free year includes the Dashboard (default: yes, setting `founding.grant_dashboard`).
-- Review the Arabic drafts of M4: `messages/ar.json` under `subscription` and `adminPayments`, and the Arabic code message sent to teachers.
 - Production: set `CRON_SECRET` on the host and make its scheduler call `/api/jobs/daily` once a day (`Authorization: Bearer <secret>`).
 - Real WhatsApp (not blocking): Meta Business setup, see the M2 notes.
 - First admin account: `npm run admin:create -- --role=admin_super` (you run it, so only you know the password).
@@ -89,8 +91,7 @@
 - **M5, Cloudflare Turnstile:** create a Turnstile widget in the Cloudflare dashboard and put the two keys in `.env.local` as `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. In development the always-pass test keys are used. In production without keys the check fails closed (after 10 reveals nobody can reveal more), so the keys are needed before launch.
 - **M5, contact page:** the real contact e-mail address (setting `contact.email`, then set `contact.configured` to true). Until then production shows "L'adresse de contact sera affichée prochainement."
 - **M5, domain:** set `SITE_URL` on the host (default in production: `https://tuniprof.tn`); it is used for canonical links and the sitemap.
-- **M5, legal pages:** `/conditions` and `/confidentialite` are stubs until you send the real texts (M12).
-- Review the Arabic drafts of M5: `messages/ar.json` under `search`, `card`, `publicProfile`, `landing`, `pages`, `home`, `header` and `footer`.
+- **M5, legal pages:** `/conditions` and `/confidentialite` are stubs (wording approved by the owner on 2026-10-27) until you send the real texts (M12).
 
 ### Known bugs / tech debt
 

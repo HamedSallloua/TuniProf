@@ -2,6 +2,11 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-27 (owner approvals, after M5)
+
+- The owner approved all Arabic texts written up to M5 (`messages/ar.json`, the refusal reason templates, the Arabic catalogue names, `docs/GLOSSARY.md`) and the wording of the legal page stubs. The real legal texts (CGU, privacy policy, legal notice) are still to be provided and checked by a lawyer; nothing is invented.
+- New file `docs/PRE_PRODUCTION_NOTES.md`: everything to do before production. It is updated in every session that changes something relevant (rule added to `CLAUDE.md` and to the memory table of `docs/AGENT_CONTEXT.md`).
+
 ## 2026-10-27 (M5)
 
 AGENT_CONTEXT and the spec differ in two small places, and the spec wins: (1) spec 3.1 lists `/devenir-professeur` and `/comment-payer` while the M5 task text only names "legal page stubs": both pages are built; (2) spec 3.3 puts a pin emoji on the card, and the owner's no-emoji rule wins: a small SVG icon is used. Choices not fixed by the spec:
