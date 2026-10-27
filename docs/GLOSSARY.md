@@ -28,6 +28,10 @@ All the texts of sign-up, login, reviewer login, password reset, WhatsApp verifi
 
 All the texts are in `messages/fr.json` and `messages/ar.json` under `profile` (form fields and hints, option lists for diploma, experience, modes and cycles, errors, status banners, the 8 refusal reasons, statuses) and `admin` (queue, detail page, actions, messages). The Arabic is a draft for the owner to review. Refusal reasons: Informations incomplètes / معلومات ناقصة, Nom invalide / اسم غير صالح, Photo inadaptée / صورة غير مناسبة, Présentation avec coordonnées / تقديم يحتوي على بيانات اتصال, Présentation trop vague / تقديم غامض جدًا, Diplôme à préciser / الشهادة تحتاج إلى توضيح, Tarifs irréalistes / أسعار غير واقعية, Autre motif / سبب آخر.
 
+## Subscription and payments (M4)
+
+All the texts are in `messages/fr.json` and `messages/ar.json` under `subscription` (status, plans, methods, request, requestStatus, upgrade, code, errors, instructions), `adminPayments` (list, detail, checklist, forms, messages sent to the teacher) and `auth.signup.founding`. The Arabic is a draft for the owner to review. Terms used: "Abonnement / الاشتراك", "Visibilité de mon profil / ظهور ملفي", "Dashboard / لوحة التحكم", "Code d'activation / رمز التفعيل", "Nouvelle formule / صيغة جديدة", "Ajout du Dashboard / إضافة لوحة التحكم", "Versement poste / CCP", "Flouci", "D17 / e-Dinar". The Arabic payment helper lines are **not written yet**: the owner sends them word for word.
+
 ## Catalogue names (seeded by migrations 0003 to 0006): owner to review the Arabic
 
 Governorates (24): Tunis تونس · Ariana أريانة · Ben Arous بن عروس · Manouba منوبة · Nabeul نابل · Zaghouan زغوان · Bizerte بنزرت · Béja باجة · Jendouba جندوبة · Le Kef الكاف · Siliana سليانة · Sousse سوسة · Monastir المنستير · Mahdia المهدية · Sfax صفاقس · Kairouan القيروان · Kasserine القصرين · Sidi Bouzid سيدي بوزيد · Gabès قابس · Médenine مدنين · Tataouine تطاوين · Gafsa قفصة · Tozeur توزر · Kébili قبلي

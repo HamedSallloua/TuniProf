@@ -2,6 +2,46 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-27 (M4)
+
+AGENT_CONTEXT and the spec agree on M4. Choices not fixed by the spec:
+
+**Entitlements**
+
+- **Two independent dates** per teacher: `visibility_until` and `dashboard_until` (spec 2.1). A plan with Dashboard extends both; Dashboard never extends visibility by itself.
+- **Extending** starts from the later of "now" and the current end date, so renewing early loses no day. Plans count in nominal days (30, 90, 180, 365).
+- **Credit before approval:** days bought or given while the profile is not approved wait in `pending_visibility_days` and `pending_dashboard_days`; they start at approval (`startCredit`), so a teacher never pays for days spent in the review queue.
+- **One SQL definition of visibility:** `teacher_is_visible(user, at)` (approved, listed, not suspended, `visibility_until` in the future) and the view `visible_teacher_profiles`, which never exposes the phone number. M5 search and profile pages must read this view (invariant 1).
+- **Grace period** of 30 days of read-only Dashboard access after expiry (`GRACE_DAYS`).
+- **Founding offer:** taken inside the approval transaction with `UPDATE settings ... WHERE used < total` (so two simultaneous approvals cannot take the same last place), one claim per phone number (`founding_claims` stays even if the account is deleted), 365 days of visibility and Dashboard (settings `founding.grant_visibility` and `founding.grant_dashboard`, both true: the owner has not yet confirmed that the free year includes the Dashboard). Sign-up shows the places left.
+
+**Payments and codes**
+
+- **One open payment request per teacher** (partial unique index); the price is copied into the request when it is created, so a later price change never alters a request already given to a teacher.
+- **Reference** `TTP-` + 5 digits, unique, written by the teacher on the payment.
+- **The same proof never twice:** `transaction_ref` is unique among verified requests, so a reused receipt is refused at the database (SQLSTATE 23505), not only in the form.
+- **Activation code** `TTP-XXXX-XXXX-XXXX` (12 characters without look-alikes), derived from the request id and `AUTH_SECRET`; only an HMAC hash is stored. The admin page re-derives it to show it again, and the teacher sees it on their Abonnement page. Bound to one request and one teacher, valid 90 days (setting `codes.expiry_days`), single use. Cancelling a code closes the request as refused.
+- **Redeem lockout:** 5 wrong codes within one hour lock redemption until one hour after the last failure. (A first version counted failures in a sliding hour and unlocked too early; found by a test and fixed.)
+- **Upgrade price** (adding the Dashboard mid-term) = (bundle price - visibility price) x remaining days / plan days, rounded to the nearest 0.5 DT. It grants the remaining visibility days as Dashboard days. This formula is mine; the spec only says the price is prorated. Easy to change in `lib/billing/plans.ts`.
+- **Manual grant** by an admin requires a note and writes an `entitlement_grants` row and an `audit_log` row.
+- **Payment details are placeholders** in `settings` (`payment.*`). In production the payment page and the request form are hidden until `payment.configured` is true, so a teacher is never told to pay a placeholder CCP number. The Arabic helper lines are not invented: setting `payment.helper_lines_ar` stays empty until the owner sends them.
+- **Who can handle payments:** support and super admins both (the spec restricts only prices and settings). Every step is checked in the database as well as on the page and written to `audit_log`.
+
+**Daily job**
+
+- `/api/jobs/daily` answers only a `Authorization: Bearer <CRON_SECRET>` call (compared in constant time); without `CRON_SECRET` set it is off. `npm run job:daily` does the same by hand. For now it only expires old codes; reminders and cleanup join it at M7.
+
+**Screens and code**
+
+- **Class strings for forms and buttons moved to `components/auth/styles.ts`.** They were exported from `ui.tsx` (`'use client'`); a server page that imports a string from a client file gets a client reference, not the text, so the payment form lost all its styling. Rule from now on: shared class strings and other plain values never live in a `'use client'` file.
+- Amounts are written "40.500 DT" in French and Arabic (always left to right); numbers inside Arabic sentences use a `<num>` tag so they keep their direction.
+- **`kind` label** on the admin screens says "Nouvelle formule" or "Ajout du Dashboard".
+
+**Tests**
+
+- Two JSON keys with the same name silently overwrote each other in `messages/*.json` (found with `subscription.status`); a test now fails on any duplicate key.
+- DB tests use an injectable `now` and roll back their transactions, so time-based rules (expiry, lockout, credit) are tested without waiting.
+
 ## 2026-10-26 (M3)
 
 AGENT_CONTEXT and the spec agree on M3. Choices not fixed by the spec:
