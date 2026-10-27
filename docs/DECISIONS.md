@@ -2,6 +2,48 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-27 (M5)
+
+AGENT_CONTEXT and the spec differ in two small places, and the spec wins: (1) spec 3.1 lists `/devenir-professeur` and `/comment-payer` while the M5 task text only names "legal page stubs": both pages are built; (2) spec 3.3 puts a pin emoji on the card, and the owner's no-emoji rule wins: a small SVG icon is used. Choices not fixed by the spec:
+
+**Search**
+
+- **Where the order is decided:** the database finds the matching teachers (always from `visible_teacher_profiles`), the application ranks them (`lib/marketplace/ranking.ts`, pure and tested), then loads the cards of the page. Alternative rejected: one big SQL `ORDER BY`, which cannot be unit tested. A safety cap of 5,000 candidates applies; fine for years of growth.
+- **Default score (out of 100):** 40 completeness (photo 50 %, bio of 200+ characters 25 %, two or more subjects 25 %, because every visible profile already has the required fields), 40 damped rating (a teacher with no review counts as 3 reviews of 4 stars, so newcomers are neither buried nor put above well-reviewed teachers), 20 renewal recency (latest purchase or grant, 1 today down to 0 after a year). The spec gives no numbers; all of this is in `lib/marketplace/config.ts` and `ranking.ts`.
+- **Rotation:** scores are cut into bands of 5 points; inside a band the order is a stable pseudo-random shuffle that changes every hour (`rotationSeed`). Stable inside the hour, so page 2 continues page 1.
+- **Online everywhere:** a governorate (or délégation) search also returns teachers who give online lessons, unless the visitor asked for "à domicile" or "chez le professeur". Choosing "en ligne" keeps the rule.
+- **Price:** the price filter and the "à partir de" figure use the rate of the subject asked for when there is one, otherwise the lowest rate of the teacher. So a card never shows a price that the filter excluded.
+- **Subjects:** only approved, active subjects count in search and on profiles ("Autre" subjects stay hidden until M11).
+- **Addresses:** `gouvernorat`, `delegation`, `niveau`, `matiere` carry slugs; `mode` is `domicile`, `professeur` or `en-ligne`; `tri` is `pertinence`, `prix-asc`, `prix-desc`, `mieux-notes` or `recents`; `prix_min`/`prix_max` are in DT. Anything invalid is ignored.
+- **Results per page:** 20, with previous and next links (plain links, work without JavaScript).
+- **Indexing:** only the plain `/recherche` is indexed; any filtered or paged search is `noindex,follow` with the canonical on `/recherche`. A landing page `/{gouvernorat}/{matiere}` is indexed (and in the sitemap) only when at least one visible teacher lives in that governorate; otherwise it still works but is `noindex`, because it would only repeat the online teachers.
+- **Mixed route:** `/{gouvernorat}/{matiere}` is a dynamic route; the fixed pages (`/admin/...`, `/prof/...`, `/espace-professeur/...`) win over it, and an unknown governorate or subject is a 404.
+
+**Contact reveal and reports**
+
+- **Reveal limits:** 30 per device per hour (spec), plus 300 per network address per hour (my choice, much higher because mobile networks share addresses; it stops someone who clears cookies). Turnstile from the 11th reveal in the hour. The device is the anonymous `tp_device` cookie (created on the first reveal). Counted in `rate_limit_events` like the other limits; `contact_events` is the permanent log. One database lock per device makes two simultaneous clicks count one after the other.
+- **Turnstile:** Cloudflare's always-pass test keys in development when none are set; in production without keys the check fails closed. The token is checked with Cloudflare before the database lock is taken (a network call).
+- **What is logged:** only `reveal` events. `view` and `whatsapp` are allowed by the table but not written yet (teacher mini-report, spec 4.4).
+- **Reports:** reasons are "informations inexactes", "contenu inapproprié", "demande ou comportement suspect", "autre" (note required for "autre", 500 characters max). They are my wording, the spec does not list reasons. One open report per browser and profile, 5 per hour per browser, only for a visible profile. Admin screen at M11.
+
+**Pages and code**
+
+- **schema.org:** `ProfessionalService` (not `Person`, which cannot carry `aggregateRating`), with the governorate as area served, never the phone number; the rating only when `rating_count > 0`.
+- **Header:** now reads the session, so every page is rendered on request (no static pages). Alternative rejected: a client component that asks the server who is signed in (flicker, extra request). Revisit at the M12 performance pass.
+- **Language switcher** keeps the query string, using `useSearchParams` inside a `Suspense` boundary.
+- **Photos on cards and profiles** use `next/image` with `unoptimized`: photos are already re-encoded to 400 x 400 JPEG, so the image optimizer would only add work.
+- **Contact page and payment page** follow the payment pattern: placeholders are shown only in development, production hides them until `contact.configured` (or `payment.configured`) is true. The Arabic payment helper lines are shown only in Arabic and only when the setting `payment.helper_lines_ar` is filled; nothing is invented.
+- **Legal stubs** are `noindex` and say the text comes before launch.
+- **404:** `app/[locale]/not-found.tsx` (inside the language layout, in the visitor's language) is used when a page refuses an address; `app/global-not-found.tsx` still covers addresses that match no page.
+- **Home featured cities:** Tunis, Sfax, Sousse, Ariana, Ben Arous, Nabeul (spec section 11 says to start with Sfax, Tunis and Sousse); featured subjects are the first eight of the catalogue. Easy to change in `app/[locale]/page.tsx`.
+- **Dev helper:** `npm run dev:sample-teachers` (`scripts/dev-sample-teachers.ts`), development database only, bypasses the review queue and the founding offer. Not in the spec; added because there is no other way to see the public pages without an admin account and a full purchase. Alternative rejected: committing a seed migration (it would put fake teachers in production).
+- `FormCatalogue.delegations` now carries the `slug`, which the search needs.
+
+**Tests**
+
+- The "never visible" tests break an approved teacher in seven different ways (plan expired, listing paused, profile suspended, account suspended, a required field removed, waiting for review, refused) and check search, profile page data, sitemap data and reveal each time.
+- Reveal and report tests use an injected `now` and an injected Turnstile check, so the one-hour windows are tested without waiting and without Cloudflare.
+
 ## 2026-10-27 (M4)
 
 AGENT_CONTEXT and the spec agree on M4. Choices not fixed by the spec:

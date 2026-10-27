@@ -73,3 +73,21 @@ Governorates (24): Tunis تونس · Ariana أريانة · Ben Arous بن عر�
 Language names in the switcher are always written in their own language: Français, العربية.
 
 The payment page helper lines (spec 4.3) are **not** in this glossary yet: they must be copied word for word from the owner's brief.
+
+## Public site (M5), Arabic drafts to review
+
+| French                                                    | Arabic (draft)                                      |
+| --------------------------------------------------------- | --------------------------------------------------- |
+| Rechercher / Trouver un professeur                        | البحث / البحث عن أستاذ                              |
+| Gouvernorat / Délégation                                  | الولاية / المعتمدية                                 |
+| Voir les coordonnées                                      | عرض بيانات الاتصال                                  |
+| Signaler ce profil                                        | الإبلاغ عن هذا الملف                                |
+| À partir de X DT / heure                                  | ابتداءً من X د.ت / الساعة                           |
+| Matières et tarifs                                        | المواد والأسعار                                     |
+| Modes de cours (à domicile, chez le professeur, en ligne) | أنواع الدروس (في المنزل، عند الأستاذ، عبر الإنترنت) |
+| Devenir professeur                                        | كن أستاذًا                                          |
+| Comment payer                                             | كيفية الدفع                                         |
+| Offre de lancement                                        | عرض الانطلاق                                        |
+| Mon espace / Déconnexion                                  | فضائي / تسجيل الخروج                                |
+
+The Arabic currency symbol used with amounts is د.ت.

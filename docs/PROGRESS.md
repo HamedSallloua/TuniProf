@@ -1,4 +1,4 @@
-## Status: M4 done, waiting for the owner's "go" for M5 (updated 2026-10-27)
+## Status: M5 done locally, waiting for the owner's review and "go" for M6 (updated 2026-10-27)
 
 ### Done
 
@@ -6,7 +6,28 @@
 - [x] M1 Database foundation and catalogues (2026-10-25). 279 délégations loaded.
 - [x] M2 Accounts and WhatsApp verification (2026-10-26). Pushed, CI green.
 - [x] M3 Teacher profile and review queue (2026-10-26). Pushed, CI green.
-- [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Local commits, not pushed yet.
+- [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
+- [x] M5 Public marketplace (2026-10-27). Local commits, not pushed. Pages with teachers on them were NOT looked at in a browser (see below).
+
+### M5 details
+
+- [x] Schema (migration 0013): `contact_events` (one row per reveal: teacher, anonymous browser hash, type, time; no phone number), `reports` ("Signaler ce profil"), indexes for searching by level, subject and zone, settings `contact.email` and `contact.configured` (placeholders). The visibility rule itself did not change: everything public reads the view `visible_teacher_profiles` (M4).
+- [x] Search (spec 3.2): governorate then délégation (dependent list), level, subject, mode, price range (on the rate of the subject asked for), minimum rating, five sorts, 20 results per page. Online teachers appear in every governorate, unless the visitor asks for another mode. Invalid values in the address are ignored, never an error.
+- [x] Default ranking: completeness (photo, long bio, 2+ subjects) + damped rating + renewal recency, near-equal scores shown in a rotating order (changes every hour, stable while browsing). Pure code in `lib/marketplace/ranking.ts`, unit tested.
+- [x] Teacher card (spec 3.3): photo or initial, name, governorate and zones, subjects, diploma and experience, levels, rating, "À partir de X DT / heure", never a phone number.
+- [x] Profile page `/prof/{slug}` (spec 3.4): all sections, safety notice, "Signaler ce profil", schema.org `ProfessionalService` (rating only when real reviews exist). An unknown or hidden profile gives a real 404.
+- [x] Click-to-reveal: the number is not in the page, it is fetched on click, logged, limited to 30 per device per hour (300 per network address), Turnstile asked from the 11th (acceptance test 14).
+- [x] SEO: landing pages `/{gouvernorat}/{matiere}`, `sitemap.xml` (visible profiles and landing pages with a teacher living in the city, both languages with hreflang), `robots.txt`, canonical URLs, unique titles and descriptions. Filtered searches and empty landing pages are `noindex`.
+- [x] Pages: home (search, subjects, cities, founding places left), `/devenir-professeur` (plans from the table), `/comment-payer`, `/contact`, and stubs for `/conditions` and `/confidentialite` (no invented legal text).
+- [x] Header shows the account state (Connexion, or Mon espace / Administration and Déconnexion); the language switcher keeps the search filters; the sign-up checkbox links to the CGU; a French or Arabic 404 page for addresses a page refuses.
+- [x] `npm run dev:sample-teachers` adds four made-up teachers to the DEVELOPMENT database so you can see the public pages (`-- --remove` deletes them). It refuses any database not ending with `_dev`.
+
+### Test results (2026-10-27, M5)
+
+- `npm test`: **525 passed, 0 skipped** (28 files), after `npm run db:reset:test`. New: 17 pure tests (parameters, ranking, levels, addresses), 26 database tests (hidden profiles never in search, profile page or sitemap for expired, paused, suspended, account suspended, missing field, waiting, refused; every filter; sorts; pagination; no phone in any result), 11 database tests (acceptance test 14, Turnstile from the 11th reveal, network-address limit, reports).
+- `npm run lint`, `typecheck`, `format:check`, `build`: pass. `npm audit`: 0 vulnerabilities.
+- Checked by hand in the browser (dev stub, no teachers in the development database): home, search page and its empty state, French and Arabic right-to-left layout, a search sent from the form (clean address `?gouvernorat=sfax&matiere=physique`, délégation list limited to Sfax), a landing page with nobody, the 404 pages (status 404 in both languages), `/comment-payer`, `/contact`, `/devenir-professeur` on a 375 px wide phone (no horizontal overflow), `sitemap.xml`, `robots.txt`, the CGU link on the sign-up page.
+- **NOT looked at in a browser:** the teacher card, the profile page, the reveal button, the Turnstile widget and the report form, because the development database has no visible teacher. Their data and rules are covered by the database tests, and the pages compile, but the screens themselves are unchecked. Run `npm run dev:sample-teachers`, then open `/recherche` and `/prof/wassima-chaaben-physique-sfax`.
 
 ### M4 details
 
@@ -28,8 +49,6 @@
 - Checked by hand in the browser (dev stub): admin approval gave the founding year automatically; teacher created a request (Trimestriel + Dashboard + CCP, 65.000 DT, reference TTP-82497) and saw the instruction page; admin marked the proof, issued the code (French and Arabic messages shown); teacher saw the code, a wrong code gave "Code invalide.", the real code moved both dates from 27 Oct 2027 to 25 Jan 2028 (founding year + 90 days); the Arabic right-to-left page has no horizontal overflow. The made-up accounts were removed afterwards and the founding counter was put back to 0.
 - Not run in a browser: the upgrade box (Dashboard added mid-term), refusing a request, cancelling a code, the admin manual grant (covered by the database tests only).
 - Bug found while testing in the browser and fixed: the button, input and link class strings lived in a `'use client'` file, so server pages received a client reference instead of the text and the admin payment form had no styling. Some M2 and M3 server pages used the same import, so they are fixed too (not re-checked one by one in the browser). The strings now live in `components/auth/styles.ts`.
-
-### M3 details
 
 ### M3 details
 
@@ -60,6 +79,12 @@
 - Production: set `CRON_SECRET` on the host and make its scheduler call `/api/jobs/daily` once a day (`Authorization: Bearer <secret>`).
 - Real WhatsApp (not blocking): Meta Business setup, see the M2 notes.
 - First admin account: `npm run admin:create -- --role=admin_super` (you run it, so only you know the password).
+- **M5, to see the pages:** run `npm run db:migrate` (migration 0013), then `npm run dev:sample-teachers`, then `npm run dev`, and open `/recherche`, `/prof/wassima-chaaben-physique-sfax`, `/sfax/physique` (and the same under `/ar`). Tell me what looks wrong.
+- **M5, Cloudflare Turnstile:** create a Turnstile widget in the Cloudflare dashboard and put the two keys in `.env.local` as `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. In development the always-pass test keys are used. In production without keys the check fails closed (after 10 reveals nobody can reveal more), so the keys are needed before launch.
+- **M5, contact page:** the real contact e-mail address (setting `contact.email`, then set `contact.configured` to true). Until then production shows "L'adresse de contact sera affichée prochainement."
+- **M5, domain:** set `SITE_URL` on the host (default in production: `https://tuniprof.tn`); it is used for canonical links and the sitemap.
+- **M5, legal pages:** `/conditions` and `/confidentialite` are stubs until you send the real texts (M12).
+- Review the Arabic drafts of M5: `messages/ar.json` under `search`, `card`, `publicProfile`, `landing`, `pages`, `home`, `header` and `footer`.
 
 ### Known bugs / tech debt
 
@@ -70,18 +95,22 @@
 - Photos live in the local `uploads/` folder; the S3 version of `StorageProvider` comes at M12 (no change elsewhere).
 - Server actions accept bodies up to 3 MB (needed for the 2 MB photo); it applies to every action.
 - Next.js dev prints a harmless "Unexpected end of JSON input" at the first request after starting `npm run dev` (a HEAD request); nothing is affected.
-- Header always shows "Connexion", even when signed in (keeps pages cacheable). Show the account state at M5.
 - Reviewers land on the home page after signing in; the review form comes at M6.
-- Cloudflare Turnstile on abuse is not wired yet (M5 and M12).
+- The header now reads the session on every request, so no page is cached as static. Fine at this size; revisit at M12 (performance pass).
+- Contact reveal needs JavaScript (the number is fetched on click), like the profile form.
+- The reviews block of the profile page only shows "Aucun avis pour le moment" until M6; `rating_avg` and `rating_count` stay 0 until then.
+- Reports ("Signaler ce profil") are stored in `reports` but there is no admin screen yet (M11). Reports about reviews are added at M6.
+- `contact_events` only records reveals. Profile views and WhatsApp clicks (needed by the teacher mini-report of spec 4.4) are not recorded yet.
+- No log of searches with no result yet (spec 6, metrics at M11): proposal for M11, it needs a small table written by the search page.
+- A profile whose only subjects are still-pending "Autre" subjects is visible but has no listed subject; it is left out of search results until the subject is approved (M11).
+- The Turnstile check fails closed in production without keys (see blockers).
+- The first request after `npm run dev` starts can answer 500 "Unexpected end of JSON input" (same dev-only hiccup as before); the next request works.
 - `rate_limit_events` and `webhook_events` grow until the cleanup job of M7.
-- The terms checkbox has no link to the CGU, because `/conditions` is a stub of M5.
-- The language switcher keeps the path but drops query strings (for example search filters). Revisit at M5.
 - `app/global-not-found.tsx` relies on an experimental Next.js flag (see DECISIONS.md). Re-check after Next.js upgrades.
 - `/favicon.ico` redirects to the placeholder `app/icon.svg`. Replace both when the owner sends the logo. The header shows the brand as text only.
 - Running `npm ci` fails on Windows while a dev server is running. Stop `npm run dev` first; `npm install` repairs a half-deleted `node_modules`.
 - The délégation import overwrites names on re-run (meant for the first load only).
 - Délégation spelling variants kept as in the owner's file: Ettadhamen, Mdhilla, Sayada-Lamta-Bou Hajar, Beni Mhira, Tameghza.
 - No message tells the teacher a code was issued: the admin sends it by WhatsApp or Messenger by hand (the code is also visible on the teacher's Abonnement page). Reminders before expiry come at M7.
-- The public pages that use `visible_teacher_profiles` (search, profile page) come at M5; until then visibility is only stored and tested.
 - After the Dashboard expires, `dashboardAccess` allows 30 days of read-only access (`GRACE_DAYS`), shown on the Abonnement page. The Dashboard screens that use it come at M8 to M10.
 - Production checklist (M12): set `AUTH_SECRET`, `CRON_SECRET` and the WhatsApp variables on the host; run `npm run db:migrate`, then `npm run db:import:delegations`; create the admin with `npm run admin:create`; switch `StorageProvider` to the S3 bucket.
