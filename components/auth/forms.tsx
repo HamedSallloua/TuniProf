@@ -10,6 +10,8 @@ import {
   signUpAction,
 } from '@/app/[locale]/(account)/actions';
 import type { FormState } from '@/app/[locale]/(account)/form-state';
+import { Link } from '@/i18n/navigation';
+import { linkClass } from './styles';
 import { CheckboxField, FormError, SubmitButton, TextField } from './ui';
 
 const initial: FormState = null;
@@ -70,7 +72,13 @@ export function SignUpForm() {
       />
       <CheckboxField
         name="terms"
-        label={t('fields.terms')}
+        label={t.rich('fields.terms', {
+          terms: (chunks) => (
+            <Link href="/conditions" target="_blank" className={linkClass}>
+              {chunks}
+            </Link>
+          ),
+        })}
         defaultChecked={state?.values?.terms}
         error={state?.fieldErrors?.terms}
       />

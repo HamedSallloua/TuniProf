@@ -17,6 +17,7 @@
     "db:import:delegations": "tsx --env-file-if-exists=.env.local scripts/db-import-delegations.ts",
     "job:daily": "tsx --env-file-if-exists=.env.local scripts/run-daily-job.ts",
     "admin:create": "tsx --env-file-if-exists=.env.local scripts/create-admin.ts",
+    "dev:sample-teachers": "tsx --env-file-if-exists=.env.local scripts/dev-sample-teachers.ts",
     "db:migrate:test": "tsx --env-file-if-exists=.env.local scripts/db-migrate.ts --test",
     "db:reset:test": "tsx --env-file-if-exists=.env.local scripts/db-reset.ts --test"
   },

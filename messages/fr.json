@@ -11,17 +11,36 @@
   },
   "header": {
     "homeLabel": "{brand}, retour à l'accueil",
-    "login": "Connexion"
+    "login": "Connexion",
+    "nav": "Navigation principale",
+    "search": "Rechercher",
+    "becomeTeacher": "Devenir professeur",
+    "mySpace": "Mon espace",
+    "admin": "Administration",
+    "logout": "Déconnexion"
   },
   "footer": {
     "copyright": "© {year} {brand}. Tous droits réservés.",
-    "tagline": "Cours particuliers, du primaire à l'université."
+    "tagline": "Cours particuliers, du primaire à l'université.",
+    "search": "Rechercher un professeur",
+    "becomeTeacher": "Devenir professeur",
+    "howToPay": "Comment payer",
+    "terms": "Conditions d'utilisation",
+    "privacy": "Confidentialité",
+    "contact": "Contact",
+    "linksLabel": "Liens du site"
   },
   "home": {
     "title": "Trouvez le bon professeur près de chez vous",
     "subtitle": "La plateforme tunisienne de cours particuliers, du primaire à l'université.",
-    "statusTitle": "Site en construction",
-    "statusBody": "Les premières fonctionnalités arrivent bientôt."
+    "searchTitle": "Rechercher un professeur",
+    "subjectsTitle": "Parcourir par matière",
+    "citiesTitle": "Parcourir par ville",
+    "foundingTitle": "Offre de lancement",
+    "foundingBody": "Les {total} premiers professeurs approuvés reçoivent un an offert. Il reste {count} places.",
+    "teacherTitle": "Vous êtes professeur ?",
+    "teacherBody": "Créez votre profil : il devient visible des parents dès l'activation de votre abonnement.",
+    "teacherCta": "Devenir professeur"
   },
   "notFound": {
     "title": "Page introuvable",
@@ -37,7 +56,7 @@
       "confirmPassword": "Confirmer le mot de passe",
       "newPassword": "Nouveau mot de passe",
       "email": "E-mail (facultatif)",
-      "terms": "J'accepte les conditions générales d'utilisation.",
+      "terms": "J'accepte les <terms>conditions générales d'utilisation</terms>.",
       "phoneConsent": "J'accepte que mon numéro de téléphone soit affiché aux visiteurs qui cliquent sur « Voir les coordonnées »."
     },
     "errors": {
@@ -416,7 +435,10 @@
     "unnamed": "(profil non rempli)",
     "showAll": "Voir toutes les demandes",
     "showOpen": "Voir seulement les demandes ouvertes",
-    "kind": { "plan": "Nouvelle formule", "upgrade": "Ajout du Dashboard" },
+    "kind": {
+      "plan": "Nouvelle formule",
+      "upgrade": "Ajout du Dashboard"
+    },
     "detail": {
       "back": "Retour aux paiements",
       "teacher": "Professeur",
@@ -550,6 +572,196 @@
       "incomplete": "Le profil est incomplet.",
       "invalid_reason": "Choisissez un motif (et une précision pour « Autre motif »).",
       "generic": "Une erreur est survenue."
+    }
+  },
+  "search": {
+    "metaTitle": "Trouver un professeur de cours particuliers | {brand}",
+    "metaDescription": "Recherchez un professeur par ville, niveau et matière. Comparez les tarifs et les avis.",
+    "title": "Trouver un professeur",
+    "intro": "Filtrez par ville, niveau, matière et prix. Les professeurs en ligne apparaissent dans tous les gouvernorats.",
+    "filters": "Filtres",
+    "fields": {
+      "governorate": "Gouvernorat",
+      "delegation": "Délégation",
+      "level": "Niveau",
+      "subject": "Matière",
+      "mode": "Mode de cours",
+      "priceMin": "Prix min. (DT/h)",
+      "priceMax": "Prix max. (DT/h)",
+      "rating": "Note minimale",
+      "sort": "Trier par"
+    },
+    "any": {
+      "governorate": "Tous les gouvernorats",
+      "delegation": "Toutes les délégations",
+      "level": "Tous les niveaux",
+      "subject": "Toutes les matières",
+      "mode": "Tous les modes",
+      "rating": "Toutes les notes"
+    },
+    "ratingOption": "{value} étoiles et plus",
+    "sort": {
+      "pertinence": "Pertinence",
+      "priceAsc": "Prix croissant",
+      "priceDesc": "Prix décroissant",
+      "bestRated": "Mieux notés",
+      "newest": "Plus récents"
+    },
+    "submit": "Rechercher",
+    "reset": "Réinitialiser",
+    "results": "{count, plural, =0 {Aucun professeur trouvé} one {# professeur trouvé} other {# professeurs trouvés}}",
+    "empty": {
+      "title": "Aucun professeur ne correspond à votre recherche.",
+      "body": "Essayez de retirer un filtre ou de choisir un autre gouvernorat.",
+      "all": "Voir tous les professeurs"
+    },
+    "pagination": {
+      "label": "Pages de résultats",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "page": "Page {page} sur {pageCount}"
+    },
+    "safety": "{brand} ne vérifie pas l'identité des professeurs. Vérifiez son identité et ses références avant tout cours."
+  },
+  "card": {
+    "fromRate": "À partir de {price} / heure",
+    "noReviews": "Pas encore d'avis",
+    "rating": "Note {avg} sur 5 ({count} avis)",
+    "photoAlt": "Photo de {name}",
+    "viewProfile": "Voir le profil",
+    "more": "+{count}",
+    "experience": "Expérience : {value}",
+    "onlineOnly": "En ligne"
+  },
+  "publicProfile": {
+    "metaTitle": "{name}, professeur à {governorate} | {brand}",
+    "back": "Retour à la recherche",
+    "experience": "Expérience : {value}",
+    "rating": "Note {avg} sur 5 ({count} avis)",
+    "noRating": "Pas encore d'avis",
+    "about": "Présentation",
+    "subjects": "Matières et tarifs",
+    "subject": "Matière",
+    "rate": "Tarif",
+    "perHour": "{price} / heure",
+    "levels": "Niveaux",
+    "modes": "Modes de cours",
+    "zones": "Zones couvertes",
+    "onlineEverywhere": "Cours en ligne : ce professeur est accessible depuis tous les gouvernorats.",
+    "contactTitle": "Contacter ce professeur",
+    "reviews": "Avis",
+    "noReviews": "Aucun avis pour le moment.",
+    "safety": "{brand} ne vérifie pas l'identité des professeurs. Vérifiez son identité et ses références avant tout cours.",
+    "reveal": {
+      "button": "Voir les coordonnées",
+      "hint": "Le numéro s'affiche à la demande, pour protéger les professeurs.",
+      "phone": "Téléphone",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "whatsappText": "Bonjour, je vous contacte via {brand}.",
+      "errors": {
+        "rate_limited": "Vous avez consulté beaucoup de coordonnées. Réessayez dans {minutes} minutes.",
+        "captcha_required": "Confirmez que vous n'êtes pas un robot, puis cliquez à nouveau.",
+        "captcha_failed": "La vérification a échoué. Réessayez.",
+        "not_found": "Ce profil n'est plus disponible.",
+        "generic": "Une erreur est survenue. Réessayez."
+      }
+    },
+    "report": {
+      "link": "Signaler ce profil",
+      "intro": "Dites-nous ce qui pose problème. Un administrateur examinera votre signalement.",
+      "reason": "Motif",
+      "reasons": {
+        "wrong_info": "Informations inexactes",
+        "inappropriate": "Contenu inapproprié",
+        "suspected_fraud": "Demande ou comportement suspect",
+        "other": "Autre"
+      },
+      "note": "Précisions",
+      "noteHint": "Obligatoire pour « Autre ». 500 caractères maximum.",
+      "submit": "Envoyer le signalement",
+      "sent": "Merci. Votre signalement a été envoyé.",
+      "errors": {
+        "invalid": "Choisissez un motif et, pour « Autre », expliquez le problème (500 caractères maximum).",
+        "not_found": "Ce profil n'est plus disponible.",
+        "already_reported": "Vous avez déjà signalé ce profil.",
+        "rate_limited": "Trop de signalements. Réessayez plus tard.",
+        "generic": "Une erreur est survenue. Réessayez."
+      }
+    }
+  },
+  "landing": {
+    "title": "Cours de {subject} à {governorate}",
+    "metaTitle": "Cours de {subject} à {governorate} : professeurs particuliers | {brand}",
+    "metaDescription": "Trouvez un professeur particulier de {subject} à {governorate}. Profils examinés avant publication, tarifs par heure et avis.",
+    "intro": "Trouvez un professeur de {subject} à {governorate}. Comparez les profils et les tarifs, puis contactez directement le professeur.",
+    "noLocal": "Il n'y a pas encore de professeur de {subject} à {governorate}. Voici les professeurs qui donnent des cours en ligne.",
+    "refine": "Affiner la recherche",
+    "otherCities": "{subject} dans d'autres villes",
+    "otherSubjects": "Autres matières à {governorate}"
+  },
+  "pages": {
+    "becomeTeacher": {
+      "metaTitle": "Devenir professeur | {brand}",
+      "metaDescription": "Créez votre profil de professeur, soyez visible des parents et gérez vos élèves avec le Dashboard.",
+      "title": "Devenir professeur sur {brand}",
+      "intro": "{brand} met en relation les professeurs de cours particuliers et les familles, du primaire à l'université. Les parents vous trouvent sans créer de compte.",
+      "stepsTitle": "Comment ça marche",
+      "step1": "Créez votre compte avec votre numéro de téléphone, vérifié par WhatsApp.",
+      "step2": "Remplissez votre profil : niveaux, matières, tarifs et zones.",
+      "step3": "Notre équipe examine votre profil (objectif : moins de 24 h).",
+      "step4": "Activez votre abonnement : votre profil devient visible.",
+      "plansTitle": "Les formules",
+      "plansIntro": "Visibilité seule, ou avec le Dashboard : groupes, séances, élèves, paiements et statistiques.",
+      "colPlan": "Formule",
+      "colDays": "Durée",
+      "colVisibility": "Visibilité",
+      "colBundle": "Avec Dashboard",
+      "days": "{count} jours",
+      "founding": "Offre de lancement : il reste {count} places pour un an offert, appliqué à l'approbation de votre profil.",
+      "cta": "Créer mon compte professeur"
+    },
+    "howToPay": {
+      "metaTitle": "Comment payer | {brand}",
+      "metaDescription": "Payez votre abonnement par Flouci, D17 / e-Dinar ou versement poste / CCP, puis activez votre profil avec un code.",
+      "title": "Comment payer",
+      "intro": "Le paiement se fait en quelques étapes simples, sans carte bancaire en ligne.",
+      "stepsTitle": "Les étapes",
+      "step1": "Choisissez votre formule dans « Activer mon profil ». Une demande de paiement est créée avec une référence unique et le montant exact.",
+      "step2": "Payez par Flouci, D17 / e-Dinar ou versement poste / CCP, en indiquant la référence.",
+      "step3": "Envoyez la preuve de paiement sur WhatsApp ou Messenger, avec votre référence.",
+      "step4": "Notre équipe vérifie le paiement et vous envoie un code d'activation.",
+      "step5": "Saisissez le code dans votre espace professeur : votre abonnement démarre.",
+      "methodsTitle": "Moyens de paiement",
+      "flouci": "Flouci",
+      "d17": "D17 (La Poste) / e-Dinar",
+      "ccp": "Versement poste / CCP",
+      "beneficiary": "Bénéficiaire",
+      "hours": "Horaires de réponse",
+      "responseTime": "Réponse généralement sous 1 heure pendant ces horaires.",
+      "notConfigured": "Les coordonnées de paiement seront affichées prochainement.",
+      "devPlaceholder": "Valeurs d'exemple, visibles uniquement en développement.",
+      "note": "Le paiement en ligne automatique arrive bientôt ; cette méthode manuelle garantit une activation rapide et sécurisée.",
+      "cta": "Activer mon profil"
+    },
+    "conditions": {
+      "metaTitle": "Conditions d'utilisation | {brand}",
+      "title": "Conditions d'utilisation",
+      "stub": "Le texte des conditions d'utilisation sera publié avant le lancement du site."
+    },
+    "privacy": {
+      "metaTitle": "Confidentialité | {brand}",
+      "title": "Politique de confidentialité",
+      "stub": "La politique de confidentialité sera publiée avant le lancement du site."
+    },
+    "contact": {
+      "metaTitle": "Contact | {brand}",
+      "title": "Nous contacter",
+      "intro": "Une question sur {brand} ? Écrivez-nous.",
+      "email": "Adresse e-mail",
+      "pending": "L'adresse de contact sera affichée prochainement.",
+      "devPlaceholder": "Adresse d'exemple, visible uniquement en développement.",
+      "hours": "Horaires : {hours}"
     }
   }
 }

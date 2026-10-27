@@ -86,7 +86,7 @@ export function TextField(props: {
 
 export function CheckboxField(props: {
   name: string;
-  label: string;
+  label: React.ReactNode;
   error?: string;
   defaultChecked?: boolean;
 }) {

@@ -1,13 +1,15 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { Suspense } from 'react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 
 // Each language is always written in its own language.
 const LANGUAGE_NAMES = { fr: 'Français', ar: 'العربية' } as const;
 
-export function LanguageSwitcher() {
+function LanguageLinks({ query }: { query: Record<string, string> }) {
   const currentLocale = useLocale();
   const pathname = usePathname();
   const t = useTranslations('language');
@@ -20,7 +22,7 @@ export function LanguageSwitcher() {
           return (
             <li key={locale}>
               <Link
-                href={pathname}
+                href={{ pathname, query }}
                 locale={locale}
                 lang={locale}
                 hrefLang={locale}
@@ -39,5 +41,19 @@ export function LanguageSwitcher() {
         })}
       </ul>
     </nav>
+  );
+}
+
+// The search filters live in the address; switching language keeps them.
+function LanguageLinksWithQuery() {
+  const searchParams = useSearchParams();
+  return <LanguageLinks query={Object.fromEntries(searchParams)} />;
+}
+
+export function LanguageSwitcher() {
+  return (
+    <Suspense fallback={<LanguageLinks query={{}} />}>
+      <LanguageLinksWithQuery />
+    </Suspense>
   );
 }
