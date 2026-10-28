@@ -1,4 +1,4 @@
-## Status: M6 done locally (not pushed; the review screens are not yet seen in a browser), waiting for the owner's review and "go" for M7 (updated 2026-10-28)
+## Status: M6 done locally (not pushed; the teacher and admin review screens are not yet seen in a browser), waiting for the owner's review and "go" for M7 (updated 2026-10-28)
 
 Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
@@ -10,7 +10,7 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - [x] M3 Teacher profile and review queue (2026-10-26). Pushed, CI green.
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
 - [x] M5 Public marketplace (2026-10-27). Pushed. Checked in a browser with the sample teachers.
-- [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests; the screens (profile reviews, teacher page, admin page) are NOT yet checked in a browser.
+- [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests; the reviewer side was checked in a browser; the teacher page and the admin page were NOT (they need a teacher and an admin account).
 
 ### M6 details
 
@@ -26,7 +26,8 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 
 - `npm test`: **558 passed, 0 skipped** (30 files), after `npm run db:reset:test`. New: 27 database tests (including acceptance test 15: a second review of the same teacher by the same account is refused, also after a refusal; the 4th review in a day is refused by the application and by the database, allowed 24 hours later; a teacher or admin cannot review; the teacher's own number cannot sign in as a reviewer), and 4 pure tests (return address, content rules).
 - `npm run lint`, `typecheck`, `format:check`, `build`: pass.
-- **Not checked in a browser:** the review form, the review list and teacher reply on the profile page, `/espace-professeur/avis` and `/admin/avis`. The sample teachers were gone from the development database when I tried, and a visible teacher is needed. To check: `npm run dev:sample-teachers`, `npm run dev`, open a profile, confirm a number as a reviewer (dev stub), send a review; an admin account (`npm run admin:create -- --role=admin_support`) is needed to publish it, and a teacher account to answer it.
+- Checked by hand in the browser (dev stub, sample teachers): from a profile, "Confirmer mon numéro" opens the reviewer sign-in with the return address, the WhatsApp check (simulated) comes back to the same profile, the header shows "Déconnexion"; sending without a rating is refused and the typed comment is kept; choosing 4 stars fills 4 stars; the review is sent ("sera publié après vérification") and the page then shows "Votre avis a été reçu" instead of the form, in French and in Arabic (right to left); a reviewer opening `/admin/avis` or `/espace-professeur/avis` is sent to the home page; the language switcher keeps the return address.
+- **Not checked in a browser:** a published review with its reply on the profile page, `/espace-professeur/avis` and `/admin/avis` (publishing, hiding, replying, reporting). They need an admin account (`npm run admin:create -- --role=admin_support`, you choose the password) and a teacher account; the database tests cover the logic. The test review (reviewer +216 29 999 900, 4 stars, waiting) is in your development database; `npm run dev:sample-teachers -- --remove` deletes it with the sample teachers.
 
 ### M5 details
 
