@@ -5,7 +5,11 @@ import { getLocale } from 'next-intl/server';
 import { headers, cookies } from 'next/headers';
 import { redirect } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
-import { SESSION_COOKIE } from '@/lib/auth/config';
+import {
+  RETURN_COOKIE,
+  RETURN_COOKIE_MAX_AGE_S,
+  SESSION_COOKIE,
+} from '@/lib/auth/config';
 import {
   clearSessionCookie,
   getCurrentUser,
@@ -13,6 +17,7 @@ import {
 } from '@/lib/auth/current-user';
 import type { Role } from '@/lib/auth/permissions';
 import { getDeviceContext } from '@/lib/auth/device';
+import { parseReturnTo } from '@/lib/auth/return-to';
 import {
   completePasswordReset,
   completeSignUp,
@@ -55,7 +60,7 @@ async function userAgent(): Promise<string | null> {
 /** Where each kind of account lands after signing in. */
 function homePathFor(role: Role): '/espace-professeur' | '/admin' | '/' {
   if (role === 'teacher') return '/espace-professeur';
-  if (role === 'visitor') return '/'; // the review form comes in M6
+  if (role === 'visitor') return '/';
   return '/admin';
 }
 
@@ -180,6 +185,18 @@ export async function reviewerLoginAction(
     device,
   });
   if (!result.ok) return refusal(result, values);
+
+  // The profile this reviewer was reading, to come back to after the WhatsApp check.
+  const returnTo = parseReturnTo(formData.get('retour'));
+  if (returnTo) {
+    (await cookies()).set(RETURN_COOKIE, returnTo, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: RETURN_COOKIE_MAX_AGE_S,
+    });
+  }
   return toVerification(await currentLocale(), result.challengeId);
 }
 
@@ -276,7 +293,11 @@ export async function finishVerificationAction(
     const done = await completeVisitorLogin(pool, input);
     if (!done.ok) return redirect({ href: '/connexion', locale });
     await setSessionCookie(done.session.token, 'visitor');
-    return redirect({ href: '/', locale });
+    // Back to the profile being read, when there is one (checked again: only /prof/...).
+    const store = await cookies();
+    const returnTo = parseReturnTo(store.get(RETURN_COOKIE)?.value);
+    store.delete(RETURN_COOKIE);
+    return redirect({ href: returnTo ?? '/', locale });
   }
   // reset: the next page asks for the new password.
   return redirect({

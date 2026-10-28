@@ -115,7 +115,14 @@ export function LoginForm() {
 }
 
 /** Phone number only: reviewer login and password-reset request. */
-export function PhoneOnlyForm({ kind }: { kind: 'reviewer' | 'reset' }) {
+export function PhoneOnlyForm({
+  kind,
+  returnTo,
+}: {
+  kind: 'reviewer' | 'reset';
+  /** A /prof/... address to come back to after signing in (reviewer only). */
+  returnTo?: string | null;
+}) {
   const t = useTranslations('auth');
   const [state, action] = useActionState(
     kind === 'reviewer' ? reviewerLoginAction : resetRequestAction,
@@ -123,6 +130,7 @@ export function PhoneOnlyForm({ kind }: { kind: 'reviewer' | 'reset' }) {
   );
   return (
     <form action={action} className="space-y-5" noValidate>
+      {returnTo && <input type="hidden" name="retour" value={returnTo} />}
       <FormError code={state?.error} minutes={state?.retryMinutes} />
       <PhoneField state={state} />
       <SubmitButton>{t(`${kind}.submit`)}</SubmitButton>

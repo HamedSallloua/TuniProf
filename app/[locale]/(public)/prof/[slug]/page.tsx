@@ -6,6 +6,7 @@ import { JsonLd } from '@/components/marketplace/JsonLd';
 import { RatingStars } from '@/components/marketplace/RatingStars';
 import { ReportForm } from '@/components/marketplace/ReportForm';
 import { RevealContact } from '@/components/marketplace/RevealContact';
+import { ReviewSection } from '@/components/reviews/ReviewSection';
 import { ArrowIcon, PinIcon } from '@/components/ui/icons';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
@@ -267,8 +268,11 @@ export default async function ProfilePage({ params }: Props) {
             <h2 id="reviews" className={sectionTitle}>
               {t('reviews')}
             </h2>
-            {/* The reviews themselves arrive with milestone M6. */}
-            <p className="mt-2 text-muted">{t('noReviews')}</p>
+            <ReviewSection
+              teacherId={profile.userId}
+              slug={profile.slug}
+              noReviewsLabel={t('noReviews')}
+            />
           </section>
 
           <ReportForm slug={profile.slug} />

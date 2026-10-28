@@ -9,6 +9,7 @@ import { getPool } from '@/lib/db/client';
 import { formatNationalPhone } from '@/lib/phone';
 import { listPaymentRequests } from '@/lib/billing/payments';
 import { listReviewQueue } from '@/lib/profile/review';
+import { listModerationQueue } from '@/lib/reviews/moderation';
 import { logoutAction } from '../../(account)/actions';
 
 export const metadata: Metadata = { robots: { index: false } };
@@ -25,8 +26,11 @@ export default async function AdminPage({
   const t = await getTranslations('auth.space');
   const ta = await getTranslations('admin');
   const tp = await getTranslations('adminPayments');
+  const tr = await getTranslations('adminReviews');
   const waiting = (await listReviewQueue(getPool())).length;
   const openPayments = (await listPaymentRequests(getPool(), 'open')).length;
+  const reviewQueue = await listModerationQueue(getPool());
+  const reviewsToDo = reviewQueue.pending.length + reviewQueue.reported.length;
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:py-12">
@@ -52,6 +56,9 @@ export default async function AdminPage({
         </Link>
         <Link href="/admin/paiements" className={buttonClass}>
           {tp('link')} ({openPayments})
+        </Link>
+        <Link href="/admin/avis" className={buttonClass}>
+          {tr('link')} ({reviewsToDo})
         </Link>
       </p>
 

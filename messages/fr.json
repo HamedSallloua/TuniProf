@@ -763,5 +763,110 @@
       "devPlaceholder": "Adresse d'exemple, visible uniquement en développement.",
       "hours": "Horaires : {hours}"
     }
+  },
+  "reviews": {
+    "author": "Avis vérifié par WhatsApp",
+    "reviewDate": "Avis du {date}",
+    "noComment": "(note sans commentaire)",
+    "replyTitle": "Réponse du professeur",
+    "writeTitle": "Laisser un avis",
+    "signInPrompt": "Pour laisser un avis, confirmez votre numéro par WhatsApp. Pas de mot de passe.",
+    "signInCta": "Confirmer mon numéro",
+    "teacherNote": "Les comptes professeur ne peuvent pas laisser d'avis.",
+    "status": {
+      "pending": "Votre avis a été reçu. Il sera publié après vérification.",
+      "published": "Votre avis est publié. Merci !",
+      "rejected": "Votre avis n'a pas été retenu.",
+      "hidden": "Votre avis n'est plus affiché."
+    },
+    "form": {
+      "rating": "Votre note",
+      "ratingOption": "{value} sur 5",
+      "comment": "Votre commentaire (facultatif)",
+      "commentHint": "{max} caractères maximum. Votre numéro n'est jamais affiché.",
+      "submit": "Envoyer mon avis",
+      "sent": "Merci ! Votre avis sera publié après vérification."
+    },
+    "errors": {
+      "invalid": "Choisissez une note de 1 à 5. Le commentaire ne peut pas dépasser 500 caractères.",
+      "forbidden": "Vous devez être connecté avec votre numéro WhatsApp pour laisser un avis.",
+      "not_found": "Ce profil n'est plus disponible.",
+      "already_reviewed": "Vous avez déjà donné votre avis sur ce professeur.",
+      "daily_limit": "Vous avez atteint la limite de 3 avis par jour. Réessayez demain.",
+      "generic": "Une erreur est survenue. Réessayez."
+    }
+  },
+  "teacherReviews": {
+    "link": "Mes avis",
+    "title": "Mes avis",
+    "intro": "Les avis publiés sur votre profil. Vous pouvez répondre une seule fois à chaque avis, et signaler un avis qui vous semble inapproprié ou faux : un administrateur décide.",
+    "back": "Retour à mon espace",
+    "empty": "Aucun avis publié pour le moment.",
+    "noComment": "(note sans commentaire)",
+    "reviewDate": "Avis du {date}",
+    "yourReply": "Votre réponse",
+    "replyLabel": "Votre réponse publique",
+    "replyHint": "Une seule réponse par avis, 500 caractères maximum. Elle ne pourra plus être modifiée.",
+    "replySubmit": "Publier la réponse",
+    "replied": "Réponse publiée.",
+    "reportLink": "Signaler cet avis",
+    "reportIntro": "Un administrateur examinera votre signalement et décidera.",
+    "reasonLabel": "Motif",
+    "reasons": {
+      "inappropriate": "Contenu inapproprié ou injurieux",
+      "fake_review": "Faux avis (personne qui n'a pas suivi de cours)",
+      "other": "Autre"
+    },
+    "noteLabel": "Précisions",
+    "noteHint": "Obligatoire pour « Autre ». 500 caractères maximum.",
+    "reportSubmit": "Envoyer le signalement",
+    "reported": "Signalement envoyé. Un administrateur va l'examiner.",
+    "replyErrors": {
+      "invalid": "La réponse doit contenir du texte (500 caractères maximum).",
+      "not_found": "Cet avis n'est plus disponible.",
+      "already_replied": "Vous avez déjà répondu à cet avis.",
+      "generic": "Une erreur est survenue. Réessayez."
+    },
+    "reportErrors": {
+      "invalid": "Choisissez un motif et, pour « Autre », expliquez le problème (500 caractères maximum).",
+      "not_found": "Cet avis n'est plus disponible.",
+      "already_reported": "Vous avez déjà signalé cet avis.",
+      "rate_limited": "Trop de signalements. Réessayez plus tard.",
+      "generic": "Une erreur est survenue. Réessayez."
+    }
+  },
+  "adminReviews": {
+    "link": "Avis à modérer",
+    "title": "Modération des avis",
+    "back": "Administration",
+    "pendingTitle": "Nouveaux avis",
+    "reportedTitle": "Avis signalés",
+    "hiddenTitle": "Avis masqués",
+    "empty": "Rien à traiter.",
+    "teacher": "Professeur",
+    "author": "Auteur",
+    "rating": "Note",
+    "comment": "Commentaire",
+    "noComment": "(sans commentaire)",
+    "reply": "Réponse du professeur",
+    "reports": "Signalements",
+    "sentOn": "Envoyé le {date}",
+    "actions": {
+      "publish": "Publier",
+      "reject": "Refuser",
+      "hide": "Masquer",
+      "keep": "Garder (rejeter le signalement)",
+      "restore": "Rétablir"
+    },
+    "flash": {
+      "publish": "Avis publié.",
+      "reject": "Avis refusé.",
+      "hide": "Avis masqué.",
+      "keep": "Avis conservé, signalements rejetés.",
+      "restore": "Avis rétabli.",
+      "invalid_state": "Cet avis a déjà été traité.",
+      "not_found": "Avis introuvable.",
+      "forbidden": "Action non autorisée."
+    }
   }
 }

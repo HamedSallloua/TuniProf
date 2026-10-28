@@ -30,6 +30,7 @@ export default async function TeacherHomePage({
   const t = await getTranslations('profile');
   const ta = await getTranslations('auth.space');
   const tsub = await getTranslations('subscription');
+  const treviews = await getTranslations('teacherReviews');
   const profile = await loadProfile(getPool(), user.id);
   const status = profile?.status ?? 'draft';
 
@@ -113,6 +114,14 @@ export default async function TeacherHomePage({
           >
             {tsub('link')}
           </Link>
+          {status === 'approved' && (
+            <Link
+              href="/espace-professeur/avis"
+              className={secondaryButtonClass}
+            >
+              {treviews('link')}
+            </Link>
+          )}
         </p>
       )}
 
