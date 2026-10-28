@@ -1,4 +1,4 @@
-## Status: M7 done locally (not pushed), waiting for the owner's review and "go" for M8 (updated 2026-10-28)
+## Status: M8 done locally (not pushed), waiting for the owner's review and "go" for M9 (updated 2026-10-28)
 
 Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
@@ -11,7 +11,27 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
 - [x] M5 Public marketplace (2026-10-27). Pushed. Checked in a browser with the sample teachers.
 - [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests, and every screen checked in a browser (reviewer, teacher and admin sides).
-- [x] M7 Notifications and jobs (2026-10-28). Local commits, not pushed. Checked in a browser (admin queue, teacher notices) and by tests; two items of the M7 list are postponed to M10 (see below).
+- [x] M7 Notifications and jobs (2026-10-28). Pushed. Checked in a browser (admin queue, teacher notices) and by tests; two items of the M7 list are postponed to M10 (see below).
+- [x] M8 Dashboard: groups, sessions, calendar (2026-10-28). Local commits, not pushed. Rules and the database refusal of overlaps covered by tests; screens checked in a browser (desktop, phone width, Arabic).
+
+### M8 details
+
+- [x] Schema (migration 0016): `groups` (name, colour, period of at most 14 months, per-session or per-month reference price, active or archived), `schedule_rules` (up to 3 slots per weekday), `sessions` (scheduled or cancelled; origin rule, moved or extra). **The database itself refuses two scheduled sessions of one teacher that overlap** (exclusion constraint `no_teacher_overlap`), a second active group with the same name, a period over 14 months, and a session in another teacher's group.
+- [x] Create a group (`/groupes/nouveau`): name, period (school year 1 Sept to 30 June suggested), weekly pattern (several slots per day), reference price, colour; a live preview lists the sessions that will be created and every conflict (date, hours, group name) before saving. Nothing is saved if there is one conflict.
+- [x] Groups list (`/groupes`): active and archived tabs, live search on the name (word start, accents and Arabic letters handled) and on the price; each result says why it matched; archive, restore, delete (typed name, with a warning).
+- [x] Group page (`/groupes/[id]`): the sessions of one month at a time, with the status of each (past, cancelled, moved, added).
+- [x] Calendar (`/calendrier`): week (default), month and year views, filter by group, "Prochaines séances", a day overlay, "Ajouter une séance", "Supprimer" and "Restaurer" a session, "Modifier date" (Confirmer disabled until something changed, asks before leaving with unsaved changes).
+- [x] "Modifier calendrier" (`/groupes/[id]/calendrier`): rebuilds only the future from a chosen date, keeps sessions the teacher moved or cancelled unless asked to reset them, always keeps added sessions, shows the conflicts before saving.
+- [x] Access: full during the plan, read-only for 30 days after it ends (every write is refused on the server, not only hidden), no access afterwards (redirect to the subscription page). The teacher home has a "Mon Dashboard" link.
+- [ ] Not in M8 (later milestones): students and "Groupe vide" replaced by a student count (M9), the delete-group warning about invoiced revenue (M10), statistics (M10). The Dashboard menu shows only the sections that exist.
+
+### M8 test results (2026-10-28)
+
+- `npm test`: **671 passed, 0 skipped** (35 files). New: 38 database tests (overlap refused by the database, one slot shared by two groups, create and conflicts = acceptance test 1, cancel and restore = test 2, move = test 3, the "Confirmer" rule = test 4 on the screen and the unchanged-slot check in code, cross-group badges = test 5, archive and delete, "Modifier calendrier" with dry run and reset, isolation between teachers, two simultaneous creations), 31 pure tests (dates, periods, rules, generation, conflicts, counts), 4 for the search text.
+- `npm run lint`, `typecheck`, `format:check`, `build`: pass.
+- Checked by hand in the browser (test teacher, dev server): creating a group with a live preview and a conflict list; the group page; week, month and year views; the day overlay; cancel, restore, move, add; "Modifier calendrier"; delete with the typed name; Arabic (right to left, no overflow); phone width 375 px (bottom tab bar, week view scrolls sideways, no page overflow).
+- Not checked in a browser: the read-only (grace) mode and the no-access redirect (the rules are tested as plain functions; the server actions check them in `writableTeacher`, but no test calls them yet); "Restaurer" of an archived group on screen (covered by a database test).
+- Test data left in your development database: group "Math 4ème" (2 to 23 Nov 2026, Mon and Fri 08:00 to 10:00, one added session on 12 Nov, price 20.500 DT per session) for your test teacher. Delete it from `/groupes` when you like.
 
 ### M7 details
 
@@ -130,6 +150,9 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - Real WhatsApp (not blocking): Meta Business setup, see the M2 notes.
 - First admin account: `npm run admin:create -- --role=admin_super` (you run it, so only you know the password).
 - **M5, to look at the pages yourself:** `npm run dev`, then open `/recherche`, `/prof/wassima-chaaben-physique-sfax`, `/sfax/physique` (and the same under `/ar`). Tell me what looks wrong. When you are done: `npm run dev:sample-teachers -- --remove`.
+- **M8, Arabic drafts to approve:** `messages/ar.json` under `dashboard`, `groups` and `calendar` (terms in `docs/GLOSSARY.md`).
+- **M8, please confirm these choices** (details in `docs/DECISIONS.md`): an archived group still blocks its future slots; the suggested period is the school year 1 September to 30 June; a past session cannot be changed; the Dashboard has no student or statistics section yet.
+- **M8, to look at it yourself:** `npm run dev`, sign in as the test teacher, open the Dashboard from the teacher home, create a group, open the calendar.
 - **M7, Arabic drafts to approve:** `messages/ar.json` under `notifications` (the text of every message sent to teachers), `teacherNotices` and `adminNotifications`.
 - **M7, someone must send the WhatsApp messages:** open `/admin/messages` every day (the admin home shows how many wait), copy, send from the WhatsApp Business app, tick. Choose the e-mail provider before launch (M12).
 - **M6, Arabic drafts to approve:** `messages/ar.json` under `reviews`, `teacherReviews` and `adminReviews`.
@@ -167,5 +190,8 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - The délégation import overwrites names on re-run (meant for the first load only).
 - Délégation spelling variants kept as in the owner's file: Ettadhamen, Mdhilla, Sayada-Lamta-Bou Hajar, Beni Mhira, Tameghza.
 - The admin still sends the activation code itself by hand (the message with the code is on the payment page); the queue only says "code ready". The code is also visible on the teacher's Abonnement page.
-- After the Dashboard expires, `dashboardAccess` allows 30 days of read-only access (`GRACE_DAYS`), shown on the Abonnement page. The Dashboard screens that use it come at M8 to M10.
+- After the Dashboard expires, `dashboardAccess` allows 30 days of read-only access (`GRACE_DAYS`), shown on the Abonnement page. The group, session and calendar screens (M8) use it; students, billing and statistics come at M9 and M10.
+- A past session is locked by the application, not by the database (a database rule would need the time zone and would block corrections by an admin). Session times are stored as local Tunisia date and time.
+- Server actions of the Dashboard are not covered by a test of the read-only and no-access cases yet (only `dashboardAccess` is). To add with the M9 tests.
+- The Dashboard menu bar on phones sits over the dev-only Next.js "N" indicator; production has no such button.
 - Production checklist (M12): set `AUTH_SECRET`, `CRON_SECRET` and the WhatsApp variables on the host; run `npm run db:migrate`, then `npm run db:import:delegations`; create the admin with `npm run admin:create`; switch `StorageProvider` to the S3 bucket.
