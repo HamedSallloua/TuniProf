@@ -2,6 +2,41 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-28 (M7)
+
+AGENT_CONTEXT and the spec agree on M7. Choices not fixed by the spec (see PRE_PRODUCTION_NOTES section 9):
+
+**The queue**
+
+- **One row per message and channel** (`site`, `whatsapp`, `email`), with a unique key (`user`, `channel`, `dedupe_key`). The key is built from the event (`plan_expiring:7:2027-01-05`, `proof:{requestId}`, `review:{reviewId}`), so repeated calls, a job run twice or a missed day never create a second message. A new term (a renewal changes the end date) is a new key.
+- **Channels per kind** (`lib/notifications/kinds.ts`): spec 9 says "WhatsApp or e-mail" for approvals; I queue both (WhatsApp copy-paste always, e-mail only when the teacher gave an address) plus the on-site notice. Payment events: WhatsApp and on-site (spec 9: WhatsApp or Messenger, manual). Expiry reminders, ended plan and grace warning: all three (spec 9 and the owner's M0 ruling for warnings). New review and report outcome: on-site only (spec 9).
+- **Messages are written when shown**, from the message files, and stored as kind plus values. The name of the teacher is stored with the message. Dates are formatted in Africa/Tunis.
+- **No secret in the queue:** the "code ready" message has no activation code (only a hash exists in the database); the admin sends the code from the payment page, which can re-derive it, and the queue links to it. A payment refusal carries only the reference: the admin's note may be internal.
+- **Created in the transaction of the event** (approval, payment decision, review moderation), so a message exists if and only if the event happened.
+- **A review published (or restored) is announced once** (key per review). A report outcome goes to the teacher who reported.
+- **Not notified:** the reviewer (no channel), suspension and restoration of a profile (spec 9 does not list them), a teacher's own reply.
+
+**The daily job**
+
+- **Reminders at 30, 7 and 1 day** (AGENT_CONTEXT M7; spec 9 lists 7 and 1). Only the smallest threshold that still covers the days left is sent: 20 days left gives the 30-day reminder, 5 days give the 7-day one. Reminders concern the visibility end date; a plan with the Dashboard shares it.
+- **"Abonnement terminé"** once, for plans that ended in the last 30 days (so the first run on an old database does not message people whose plan ended long ago).
+- **Grace warning:** the Dashboard stays read-only for 30 days after it ends (spec 2.5); the warning goes out 7 days before that ends (my number, `GRACE_WARNING_DAYS`).
+- **Only approved or suspended profiles** get plan messages (they once had a visible profile), and only active accounts.
+- **Cleanup periods** (my choice, `lib/notifications/schedule.ts`): rate-limit counters 2 days, webhook message ids 30 days, finished verification challenges and sessions 30 days, read or sent notifications 12 months. A message still waiting is never deleted.
+- **Postponed to M10:** monthly accounts creation and the 12-month Dashboard data retention with its two deletion warnings. They need the Dashboard tables (M8 to M10); warning teachers about deleting data that does not exist yet would be wrong. Recorded in PRE_PRODUCTION_NOTES.
+- **Every step is idempotent** and a failure of e-mail delivery does not stop the steps before it (the delivery runs after the queueing).
+
+**E-mail**
+
+- **`EmailProvider` interface**; development writes the e-mail in the terminal; production has no provider until the owner chooses one (M12), so e-mails stay queued. Alternative rejected: picking a provider myself (account, DNS and cost are the owner's).
+- **Bilingual e-mails:** French then Arabic in one message, subject `French | Arabic`, because the language of a teacher is not stored. Alternative rejected: adding a language column to users now.
+- **Retries:** claimed with a row lock (two runs never take the same message), 3 attempts, then `failed` with the last error.
+
+**Screens**
+
+- **Admin `/admin/messages`:** a list, not a detail page; copy buttons per language, `wa.me` links with the text, "Marquer comme envoyé". Open Meta templates later by adding a delivery step for the `whatsapp` channel.
+- **Teacher notices** on the teacher home (up to 10 unread), marked read one by one.
+
 ## 2026-10-28 (M6)
 
 AGENT_CONTEXT and the spec agree on M6. Choices not fixed by the spec (to confirm, see PRE_PRODUCTION_NOTES section 9):

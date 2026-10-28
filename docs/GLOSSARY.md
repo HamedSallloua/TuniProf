@@ -103,3 +103,17 @@ The Arabic currency symbol used with amounts is د.ت.
 | Signaler cet avis                               | الإبلاغ عن هذا التقييم              |
 | Publier / Refuser / Masquer / Garder / Rétablir | نشر / رفض / إخفاء / الإبقاء / إعادة |
 | Modération des avis                             | مراجعة التقييمات                    |
+
+## Notifications (M7), Arabic drafts to approve
+
+All the message texts are in `messages/ar.json` under `notifications.kinds`. Terms used:
+
+| French                           | Arabic (draft)            |
+| -------------------------------- | ------------------------- |
+| Notifications                    | الإشعارات                 |
+| Marquer comme lu                 | تعليم كمقروء              |
+| Messages WhatsApp à envoyer      | رسائل واتساب للإرسال      |
+| Marquer comme envoyé             | تعليم كمرسل               |
+| Copier le texte français / arabe | نسخ النص الفرنسي / العربي |
+| Mon abonnement                   | اشتراكي                   |
+| Code d'activation                | رمز التفعيل               |

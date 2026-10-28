@@ -1,4 +1,4 @@
-## Status: M6 done locally (not pushed), waiting for the owner's review and "go" for M7 (updated 2026-10-28)
+## Status: M7 done locally (not pushed), waiting for the owner's review and "go" for M8 (updated 2026-10-28)
 
 Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
@@ -11,6 +11,26 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
 - [x] M5 Public marketplace (2026-10-27). Pushed. Checked in a browser with the sample teachers.
 - [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests, and every screen checked in a browser (reviewer, teacher and admin sides).
+- [x] M7 Notifications and jobs (2026-10-28). Local commits, not pushed. Checked in a browser (admin queue, teacher notices) and by tests; two items of the M7 list are postponed to M10 (see below).
+
+### M7 details
+
+- [x] Schema (migration 0015): `notifications` (one row per message and channel: on-site notice, WhatsApp copy-paste, e-mail), with a unique key per person, channel and event, so the same message can never be queued twice.
+- [x] Messages queued at the right moment, inside the transaction of the event: profile approved or refused, change of profile approved or refused, payment proof received, code ready (never the code itself, only a link to the payment page), payment refused (never the admin's note), new review published (once), outcome of a review report (to the teacher who reported). E-mail only for teachers who gave an address.
+- [x] The text is written when shown or sent from the message files (French and Arabic), so wording changes apply to old messages too; dates are shown in the Africa/Tunis time zone.
+- [x] Admin `/admin/messages` ("Messages WhatsApp à envoyer"): the message in French and in Arabic, copy buttons, "Ouvrir WhatsApp" links, "Marquer comme envoyé" (checked in the database, logged), a count on the admin home. For a code message, a link to the payment page where the message with the code is.
+- [x] Teacher home: unread notices on top ("Marquer comme lu", only their own).
+- [x] E-mail: `EmailProvider` interface; in development e-mails are written in the terminal; in production, without a provider, they stay queued. The daily job sends them (French then Arabic in one message), retries 3 times, then marks them failed.
+- [x] Daily job: expires old codes; expiry reminders at 30, 7 and 1 day (only the smallest that applies, so a late joiner gets one message, not three; a renewal gives the next term its own reminders); "abonnement terminé" once for plans that ended in the last 30 days; end-of-Dashboard-grace warning 7 days before the 30 read-only days end; e-mail delivery; cleanup of old rows. Running it twice changes nothing (tested, and checked on the development database).
+- [ ] **Postponed to M10** (they need tables that do not exist yet): creating the monthly accounts, and the 12-month retention of Dashboard data with its two deletion warnings. See `docs/PRE_PRODUCTION_NOTES.md`.
+
+### Test results (2026-10-28, M7)
+
+- `npm test`: **598 passed, 0 skipped** (32 files), after `npm run db:reset:test`. New: 28 database tests (queue and channels, dedupe, one test per event that queues a message, reminder thresholds and idempotence, expired notices, grace warnings, cleanup, e-mail delivery with success, retry, give-up and no provider, WhatsApp queue and read notices, the daily job run twice, a broken e-mail provider) and 12 pure tests (reminder thresholds, channels per kind, the text of every kind in French and Arabic, dates in Tunis time, plural, greeting).
+- `npm run lint`, `typecheck`, `format:check`, `build`: pass.
+- Checked by hand in the browser (dev stub, test admin and test teacher): a payment request created by the teacher; the admin marked the proof received, which queued a WhatsApp message (French and Arabic text, wa.me links with the text) and a notice; "Marquer comme envoyé" emptied the queue; issuing the code queued "Votre code d'activation est prêt" with a link to the payment and no code in the text; the teacher home showed both notices, newest first, "Marquer comme lu" removed one, the Arabic page showed them right to left. `npm run job:daily` on the development database printed the counts, and the second run printed zeros.
+- Not checked in a browser: the review notices (review published, report outcome) and the profile approval and refusal messages (covered by the database tests); reminders and the grace warning on real dates (tested with dates). A real e-mail was never sent (no provider yet).
+- Test data left in your development database: a verified request (TTP-74775, code issued but not redeemed) for your test teacher, and "plan expired" messages for the expired sample teachers (they disappear with `npm run dev:sample-teachers -- --remove`).
 
 ### M6 details
 
@@ -110,6 +130,8 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - Real WhatsApp (not blocking): Meta Business setup, see the M2 notes.
 - First admin account: `npm run admin:create -- --role=admin_super` (you run it, so only you know the password).
 - **M5, to look at the pages yourself:** `npm run dev`, then open `/recherche`, `/prof/wassima-chaaben-physique-sfax`, `/sfax/physique` (and the same under `/ar`). Tell me what looks wrong. When you are done: `npm run dev:sample-teachers -- --remove`.
+- **M7, Arabic drafts to approve:** `messages/ar.json` under `notifications` (the text of every message sent to teachers), `teacherNotices` and `adminNotifications`.
+- **M7, someone must send the WhatsApp messages:** open `/admin/messages` every day (the admin home shows how many wait), copy, send from the WhatsApp Business app, tick. Choose the e-mail provider before launch (M12).
 - **M6, Arabic drafts to approve:** `messages/ar.json` under `reviews`, `teacherReviews` and `adminReviews`.
 - **M6, please confirm the review rules** I chose where the spec is silent (details in `docs/DECISIONS.md`): no editing or deleting of one's own review, a refused review still blocks a new one, replies are public at once and final, no contact-detail filter on review comments.
 - **M5, Cloudflare Turnstile:** create a Turnstile widget in the Cloudflare dashboard and put the two keys in `.env.local` as `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. In development the always-pass test keys are used. In production without keys the check fails closed (after 10 reveals nobody can reveal more), so the keys are needed before launch.
@@ -120,7 +142,6 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 ### Known bugs / tech debt
 
 - Pending "Autre" subjects are created but there is no screen to approve them yet (admin catalogue editors, M11). Until then they stay hidden from the public.
-- No email or WhatsApp message tells the teacher about an approval or refusal: only the banner on their home page (notifications, M7).
 - The profile form needs JavaScript (zones depend on the governorate).
 - No rate limit on profile saves and photo uploads yet (signed-in teachers only); to review in M12.
 - Photos live in the local `uploads/` folder; the S3 version of `StorageProvider` comes at M12 (no change elsewhere).
@@ -130,7 +151,7 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - The header now reads the session on every request, so no page is cached as static. Fine at this size; revisit at M12 (performance pass).
 - Opening the report form before the page has finished loading can print a harmless React "hydration" warning in the browser console (the `<details>` was opened before React took over).
 - Contact reveal needs JavaScript (the number is fetched on click), like the profile form.
-- Nobody is notified of a new review, a reply or an admin decision (M7); the reviewer sees the status only by opening the profile again.
+- A reviewer is not notified of what happened to their review (they have no channel except the page itself); a teacher is told of a published review and of a report outcome, but not of a new reply (they write it).
 - An abusive reviewer can only be suspended with SQL until the admin screens of M11; there is no screen listing a reviewer's reviews.
 - The profile page shows the 20 latest reviews, with no "see more" yet.
 - Reports about profiles ("Signaler ce profil") are stored in `reports` but have no admin screen yet (M11). Reports about reviews are handled in `/admin/avis`.
@@ -138,13 +159,13 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - No log of searches with no result yet (spec 6, metrics at M11): proposal for M11, it needs a small table written by the search page.
 - A profile whose only subjects are still-pending "Autre" subjects is visible but has no listed subject; it is left out of search results until the subject is approved (M11).
 - The Turnstile check fails closed in production without keys (see blockers).
+- Notification wording is stored as kind + values, not as text: if a message file changes, old waiting messages change too (intended).
 - The first request after `npm run dev` starts can answer 500 "Unexpected end of JSON input" (same dev-only hiccup as before); the next request works.
-- `rate_limit_events` and `webhook_events` grow until the cleanup job of M7.
 - `app/global-not-found.tsx` relies on an experimental Next.js flag (see DECISIONS.md). Re-check after Next.js upgrades.
 - `/favicon.ico` redirects to the placeholder `app/icon.svg`. Replace both when the owner sends the logo. The header shows the brand as text only.
 - Running `npm ci` fails on Windows while a dev server is running. Stop `npm run dev` first; `npm install` repairs a half-deleted `node_modules`.
 - The délégation import overwrites names on re-run (meant for the first load only).
 - Délégation spelling variants kept as in the owner's file: Ettadhamen, Mdhilla, Sayada-Lamta-Bou Hajar, Beni Mhira, Tameghza.
-- No message tells the teacher a code was issued: the admin sends it by WhatsApp or Messenger by hand (the code is also visible on the teacher's Abonnement page). Reminders before expiry come at M7.
+- The admin still sends the activation code itself by hand (the message with the code is on the payment page); the queue only says "code ready". The code is also visible on the teacher's Abonnement page.
 - After the Dashboard expires, `dashboardAccess` allows 30 days of read-only access (`GRACE_DAYS`), shown on the Abonnement page. The Dashboard screens that use it come at M8 to M10.
 - Production checklist (M12): set `AUTH_SECRET`, `CRON_SECRET` and the WhatsApp variables on the host; run `npm run db:migrate`, then `npm run db:import:delegations`; create the admin with `npm run admin:create`; switch `StorageProvider` to the S3 bucket.
