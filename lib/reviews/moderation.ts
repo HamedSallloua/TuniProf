@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import { isActiveAdmin } from '@/lib/auth/admin';
 import { withTransaction, type Queryable } from '@/lib/db/transaction';
+import { enqueueNotification } from '@/lib/notifications/queue';
 import type { ReviewStatus } from './repo';
 
 // Admin side of reviews (spec 3.5, 6): publish or reject what is new, take down a published
@@ -132,9 +133,11 @@ export async function moderateReview(
     const { rows } = await client.query<{
       status: ReviewStatus;
       teacher_id: string;
-    }>('SELECT status, teacher_id FROM reviews WHERE id = $1 FOR UPDATE', [
-      reviewId,
-    ]);
+      rating: number;
+    }>(
+      'SELECT status, teacher_id, rating FROM reviews WHERE id = $1 FOR UPDATE',
+      [reviewId],
+    );
     if (!rows[0]) return { ok: false, reason: 'not_found' } as const;
     if (rows[0].status !== step.from)
       return { ok: false, reason: 'invalid_state' } as const;
@@ -148,11 +151,34 @@ export async function moderateReview(
     // A decision on a published review closes its open reports: "hide" upholds them,
     // "keep" dismisses them.
     if (action === 'hide' || action === 'keep') {
+      // The teacher who reported is told what was decided.
+      const reports = await client.query<{ id: string; reporter_id: string }>(
+        `SELECT id, reporter_id FROM reports
+          WHERE review_id = $1 AND status = 'open' AND reporter_id IS NOT NULL`,
+        [reviewId],
+      );
+      for (const report of reports.rows) {
+        await enqueueNotification(client, {
+          userId: report.reporter_id,
+          kind: 'review_report_outcome',
+          dedupeKey: `report:${report.id}`,
+          params: { outcome: action === 'hide' ? 'upheld' : 'dismissed' },
+        });
+      }
       await client.query(
         `UPDATE reports SET status = $2, handled_by = $3, handled_at = $4
           WHERE review_id = $1 AND status = 'open'`,
         [reviewId, action === 'hide' ? 'upheld' : 'dismissed', actorId, now],
       );
+    }
+    // A review that goes live (or comes back) is announced to the teacher, once.
+    if (step.to === 'published') {
+      await enqueueNotification(client, {
+        userId: rows[0].teacher_id,
+        kind: 'review_published',
+        dedupeKey: `review:${reviewId}`,
+        params: { rating: rows[0].rating },
+      });
     }
     await client.query(
       `INSERT INTO audit_log (actor_id, action, target_type, target_id, details, created_at)

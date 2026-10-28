@@ -4,6 +4,7 @@ import { isActiveAdmin } from '@/lib/auth/admin';
 import { slugify } from '@/lib/slug';
 import { startCredit } from '@/lib/billing/entitlements';
 import { tryGrantFounding } from '@/lib/billing/founding';
+import { enqueueNotification } from '@/lib/notifications/queue';
 import { loadProfile, type TeacherProfile } from './repo';
 import { isRejectionReason } from './rules';
 
@@ -233,6 +234,11 @@ export async function approveProfile(
         },
         now,
       );
+      await enqueueNotification(client, {
+        userId,
+        kind: 'profile_approved',
+        dedupeKey: `profile_approved:${now.toISOString()}`,
+      });
       return { ok: true, slug } as const;
     });
   } catch (error) {
@@ -268,6 +274,12 @@ export async function rejectProfile(
       { reason: input.reason, note: input.note },
       now,
     );
+    await enqueueNotification(client, {
+      userId,
+      kind: 'profile_rejected',
+      dedupeKey: `profile_rejected:${now.toISOString()}`,
+      params: { reason: input.reason, note: input.note?.trim() || null },
+    });
     return { ok: true } as const;
   });
 }
@@ -300,6 +312,11 @@ export async function approveVersion(
       ],
     );
     await audit(client, actorId, 'profile.approve_version', userId, {}, now);
+    await enqueueNotification(client, {
+      userId,
+      kind: 'version_approved',
+      dedupeKey: `version_approved:${now.toISOString()}`,
+    });
     const unused =
       profile.photo_key && profile.photo_key !== newPhoto
         ? [profile.photo_key]
@@ -337,6 +354,12 @@ export async function rejectVersion(
       { reason: input.reason, note: input.note },
       now,
     );
+    await enqueueNotification(client, {
+      userId,
+      kind: 'version_rejected',
+      dedupeKey: `version_rejected:${now.toISOString()}`,
+      params: { reason: input.reason, note: input.note?.trim() || null },
+    });
     const photo = version.photo_key ?? null;
     return {
       ok: true,

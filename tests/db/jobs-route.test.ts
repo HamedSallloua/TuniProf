@@ -88,9 +88,16 @@ describe.skipIf(!testDatabaseUrl)('daily job endpoint (database)', () => {
 
     const first = await call(`Bearer ${SECRET}`);
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({ ok: true, codesExpired: 1 });
+    expect(await first.json()).toMatchObject({ ok: true, codesExpired: 1 });
     const second = await call(`Bearer ${SECRET}`);
-    expect(await second.json()).toEqual({ ok: true, codesExpired: 0 });
+    expect(await second.json()).toMatchObject({
+      ok: true,
+      codesExpired: 0,
+      remindersQueued: 0,
+      expiredNoticesQueued: 0,
+      graceWarningsQueued: 0,
+      emails: { sent: 0, failed: 0 },
+    });
   });
 
   it('only answers to POST', async () => {

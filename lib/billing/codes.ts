@@ -4,6 +4,7 @@ import { isActiveAdmin } from '@/lib/auth/admin';
 import { CODE_ALPHABET, hmac } from '@/lib/auth/crypto';
 import { recordEvents } from '@/lib/auth/rate-limit';
 import { withTransaction } from '@/lib/db/transaction';
+import { enqueueNotification } from '@/lib/notifications/queue';
 import { getAuthSecret } from '@/lib/env';
 import { addDays, DAY_MS } from './entitlements';
 import { getPlan } from './plans';
@@ -83,7 +84,7 @@ export async function issueCode(
         return { ok: false, reason: 'forbidden' } as const;
 
       const { rows } = await client.query(
-        `SELECT id, teacher_id, plan_id, kind, with_dashboard, upgrade_dashboard_days, status
+        `SELECT id, teacher_id, plan_id, kind, with_dashboard, upgrade_dashboard_days, status, reference
          FROM payment_requests WHERE id = $1 FOR UPDATE`,
         [requestId],
       );
@@ -153,6 +154,14 @@ export async function issueCode(
           now,
         ],
       );
+      // The message never contains the code (only a hash is kept): the admin sends it from
+      // the payment page, which can show it again.
+      await enqueueNotification(client, {
+        userId: request.teacher_id,
+        kind: 'code_issued',
+        dedupeKey: `code:${codeId}`,
+        params: { reference: request.reference, paymentId: requestId },
+      });
       return { ok: true, code, codeId } as const;
     });
   } catch (error) {

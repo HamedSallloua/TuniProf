@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import type { Pool } from 'pg';
 import { isActiveAdmin } from '@/lib/auth/admin';
 import { withTransaction, type Queryable } from '@/lib/db/transaction';
+import { enqueueNotification } from '@/lib/notifications/queue';
 import { addDays, daysLeft, getEntitlements } from './entitlements';
 import { getPlan, planPrice, upgradePrice } from './plans';
 import { getPaymentSettings, paymentsAvailable } from './settings';
@@ -292,12 +293,16 @@ export async function markProofReceived(
   return withTransaction(pool, async (client) => {
     if (!(await isActiveAdmin(client, adminId)))
       return { ok: false, reason: 'forbidden' } as const;
-    const { rowCount } = await client.query(
+    const updated = await client.query<{
+      teacher_id: string;
+      reference: string;
+    }>(
       `UPDATE payment_requests SET status = 'proof_received', handled_by = $2, handled_at = $3
-       WHERE id = $1 AND status = 'pending'`,
+       WHERE id = $1 AND status = 'pending'
+       RETURNING teacher_id, reference`,
       [requestId, adminId, now],
     );
-    if (rowCount !== 1) {
+    if (updated.rowCount !== 1) {
       const exists = await client.query(
         'SELECT 1 FROM payment_requests WHERE id = $1',
         [requestId],
@@ -315,6 +320,12 @@ export async function markProofReceived(
       {},
       now,
     );
+    await enqueueNotification(client, {
+      userId: updated.rows[0].teacher_id,
+      kind: 'payment_proof_received',
+      dedupeKey: `proof:${requestId}`,
+      params: { reference: updated.rows[0].reference },
+    });
     return { ok: true } as const;
   });
 }
@@ -332,12 +343,16 @@ export async function rejectPaymentRequest(
   return withTransaction(pool, async (client) => {
     if (!(await isActiveAdmin(client, adminId)))
       return { ok: false, reason: 'forbidden' } as const;
-    const { rowCount } = await client.query(
+    const updated = await client.query<{
+      teacher_id: string;
+      reference: string;
+    }>(
       `UPDATE payment_requests SET status = 'rejected', note = $2, handled_by = $3, handled_at = $4
-       WHERE id = $1 AND status IN ('pending', 'proof_received')`,
+       WHERE id = $1 AND status IN ('pending', 'proof_received')
+       RETURNING teacher_id, reference`,
       [requestId, text, adminId, now],
     );
-    if (rowCount !== 1) {
+    if (updated.rowCount !== 1) {
       const exists = await client.query(
         'SELECT 1 FROM payment_requests WHERE id = $1',
         [requestId],
@@ -355,6 +370,13 @@ export async function rejectPaymentRequest(
       { note: text },
       now,
     );
+    // The admin's note stays internal: the teacher only gets the reference.
+    await enqueueNotification(client, {
+      userId: updated.rows[0].teacher_id,
+      kind: 'payment_refused',
+      dedupeKey: `refused:${requestId}`,
+      params: { reference: updated.rows[0].reference },
+    });
     return { ok: true } as const;
   });
 }
