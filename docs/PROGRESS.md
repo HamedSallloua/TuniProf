@@ -1,4 +1,4 @@
-## Status: M5 done and pushed, waiting for the owner's "go" for M6 (updated 2026-10-27)
+## Status: M6 done locally (not pushed; the review screens are not yet seen in a browser), waiting for the owner's review and "go" for M7 (updated 2026-10-28)
 
 Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
@@ -10,6 +10,23 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - [x] M3 Teacher profile and review queue (2026-10-26). Pushed, CI green.
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
 - [x] M5 Public marketplace (2026-10-27). Pushed. Checked in a browser with the sample teachers.
+- [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests; the screens (profile reviews, teacher page, admin page) are NOT yet checked in a browser.
+
+### M6 details
+
+- [x] Schema (migration 0014): `reviews` (rating 1 to 5, comment up to 500, status new / published / refused / hidden, one public teacher reply, one review per account and teacher), and `reports` now also covers reviews (`review_id`).
+- [x] The database itself enforces: only a reviewer account can be the author (teachers and admins cannot), at most 3 reviews per account per rolling 24 hours (trigger, SQLSTATE `TP002`), one review per account and teacher, a reply only on a review that was published, and `rating_avg` / `rating_count` on the profile are recalculated by a trigger from PUBLISHED reviews only (two decimals).
+- [x] Own-phone rule: one phone number is one account with one role (M2), so a teacher's number can never become a reviewer account (the reviewer sign-in answers "account exists"), and the foreign key refuses a teacher as author. Tested both ways.
+- [x] Reviewer flow: the profile page shows "Confirmer mon numéro" (WhatsApp, no password) that comes back to the same profile after the check (cookie `tp_return`, only `/prof/{slug}` addresses accepted); then the star form (1 to 5, optional comment, sent by hand so a refusal keeps the fields); afterwards the page shows the status of the review ("reçu, publié après vérification", "publié", "non retenu", "n'est plus affiché").
+- [x] Public: published reviews on the profile page (20 latest), with the teacher's reply; the author is never shown, only "Avis vérifié par WhatsApp" and the date. The cached rating now feeds the search filter and sort, the card, and the schema.org `aggregateRating`.
+- [x] Teacher: `/espace-professeur/avis` (link on the teacher home, approved profiles): published reviews of their own profile, one public reply per review (final), and "Signaler cet avis" (reasons: contenu inapproprié, faux avis, autre).
+- [x] Admin: `/admin/avis` with three lists: new reviews (Publier / Refuser), published reviews reported by a teacher (Masquer, which upholds the reports, or Garder, which dismisses them), and hidden reviews (Rétablir). The admin sees the reviewer's phone number. Every decision is checked in the database (active admin) and written to `audit_log`. The admin home shows how many reviews wait.
+
+### Test results (2026-10-28, M6)
+
+- `npm test`: **558 passed, 0 skipped** (30 files), after `npm run db:reset:test`. New: 27 database tests (including acceptance test 15: a second review of the same teacher by the same account is refused, also after a refusal; the 4th review in a day is refused by the application and by the database, allowed 24 hours later; a teacher or admin cannot review; the teacher's own number cannot sign in as a reviewer), and 4 pure tests (return address, content rules).
+- `npm run lint`, `typecheck`, `format:check`, `build`: pass.
+- **Not checked in a browser:** the review form, the review list and teacher reply on the profile page, `/espace-professeur/avis` and `/admin/avis`. The sample teachers were gone from the development database when I tried, and a visible teacher is needed. To check: `npm run dev:sample-teachers`, `npm run dev`, open a profile, confirm a number as a reviewer (dev stub), send a review; an admin account (`npm run admin:create -- --role=admin_support`) is needed to publish it, and a teacher account to answer it.
 
 ### M5 details
 
@@ -88,6 +105,8 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - Real WhatsApp (not blocking): Meta Business setup, see the M2 notes.
 - First admin account: `npm run admin:create -- --role=admin_super` (you run it, so only you know the password).
 - **M5, to look at the pages yourself:** `npm run dev`, then open `/recherche`, `/prof/wassima-chaaben-physique-sfax`, `/sfax/physique` (and the same under `/ar`). Tell me what looks wrong. When you are done: `npm run dev:sample-teachers -- --remove`.
+- **M6, Arabic drafts to approve:** `messages/ar.json` under `reviews`, `teacherReviews` and `adminReviews`.
+- **M6, please confirm the review rules** I chose where the spec is silent (details in `docs/DECISIONS.md`): no editing or deleting of one's own review, a refused review still blocks a new one, replies are public at once and final, no contact-detail filter on review comments.
 - **M5, Cloudflare Turnstile:** create a Turnstile widget in the Cloudflare dashboard and put the two keys in `.env.local` as `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. In development the always-pass test keys are used. In production without keys the check fails closed (after 10 reveals nobody can reveal more), so the keys are needed before launch.
 - **M5, contact page:** the real contact e-mail address (setting `contact.email`, then set `contact.configured` to true). Until then production shows "L'adresse de contact sera affichée prochainement."
 - **M5, domain:** set `SITE_URL` on the host (default in production: `https://tuniprof.tn`); it is used for canonical links and the sitemap.
@@ -102,12 +121,14 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - Photos live in the local `uploads/` folder; the S3 version of `StorageProvider` comes at M12 (no change elsewhere).
 - Server actions accept bodies up to 3 MB (needed for the 2 MB photo); it applies to every action.
 - Next.js dev prints a harmless "Unexpected end of JSON input" at the first request after starting `npm run dev` (a HEAD request); nothing is affected.
-- Reviewers land on the home page after signing in; the review form comes at M6.
+- A reviewer who signs in from the login page (not from a profile) lands on the home page.
 - The header now reads the session on every request, so no page is cached as static. Fine at this size; revisit at M12 (performance pass).
 - Opening the report form before the page has finished loading can print a harmless React "hydration" warning in the browser console (the `<details>` was opened before React took over).
 - Contact reveal needs JavaScript (the number is fetched on click), like the profile form.
-- The reviews block of the profile page only shows "Aucun avis pour le moment" until M6; `rating_avg` and `rating_count` stay 0 until then.
-- Reports ("Signaler ce profil") are stored in `reports` but there is no admin screen yet (M11). Reports about reviews are added at M6.
+- Nobody is notified of a new review, a reply or an admin decision (M7); the reviewer sees the status only by opening the profile again.
+- An abusive reviewer can only be suspended with SQL until the admin screens of M11; there is no screen listing a reviewer's reviews.
+- The profile page shows the 20 latest reviews, with no "see more" yet.
+- Reports about profiles ("Signaler ce profil") are stored in `reports` but have no admin screen yet (M11). Reports about reviews are handled in `/admin/avis`.
 - `contact_events` only records reveals. Profile views and WhatsApp clicks (needed by the teacher mini-report of spec 4.4) are not recorded yet.
 - No log of searches with no result yet (spec 6, metrics at M11): proposal for M11, it needs a small table written by the search page.
 - A profile whose only subjects are still-pending "Autre" subjects is visible but has no listed subject; it is left out of search results until the subject is approved (M11).

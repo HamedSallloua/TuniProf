@@ -91,3 +91,15 @@ The payment page helper lines (spec 4.3) are **not** in this glossary yet: they 
 | Mon espace / Déconnexion                                  | فضائي / تسجيل الخروج                                |
 
 The Arabic currency symbol used with amounts is د.ت.
+
+## Reviews (M6), Arabic drafts to approve
+
+| French                                          | Arabic (draft)                      |
+| ----------------------------------------------- | ----------------------------------- |
+| Avis / Laisser un avis                          | تقييم / اترك تقييمًا                |
+| Avis vérifié par WhatsApp                       | تقييم تم التحقق منه عبر واتساب      |
+| Réponse du professeur                           | رد الأستاذ                          |
+| Mes avis                                        | تقييماتي                            |
+| Signaler cet avis                               | الإبلاغ عن هذا التقييم              |
+| Publier / Refuser / Masquer / Garder / Rétablir | نشر / رفض / إخفاء / الإبقاء / إعادة |
+| Modération des avis                             | مراجعة التقييمات                    |

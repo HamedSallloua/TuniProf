@@ -2,6 +2,35 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-28 (M6)
+
+AGENT_CONTEXT and the spec agree on M6. Choices not fixed by the spec (to confirm, see PRE_PRODUCTION_NOTES section 9):
+
+**Rules of a review**
+
+- **One review per account and teacher, final:** no editing and no deleting by the author in v1. The unique key also means a refused review still blocks a new one by that account on that teacher. Alternative rejected: letting the author edit (it would reopen moderation and the rating history).
+- **At most 3 reviews per account per day** is a rolling 24 hours, counting every review whatever its status (refused ones too), enforced by a trigger (SQLSTATE `TP002`, not by message text). A calendar day in Africa/Tunis was rejected: a midnight reset would allow 6 reviews in a few minutes.
+- **Own phone number:** impossible by design rather than by a comparison. One number is one account with one role (M2), so a teacher's number can only be a teacher; the reviewer sign-in refuses it and the foreign key refuses a teacher as author. Tested both ways.
+- **Only a visible profile can be reviewed** (same visibility rule as everywhere). Reviews already written stay when a profile later expires.
+- **States:** `pending` (new), `published`, `rejected`, `hidden` (published then taken down). Allowed steps: pending to published or rejected; published to hidden; hidden back to published. Spec 3.5 mentions auto-publishing "later": not done, every review is moderated.
+- **Rating cache:** `rating_avg` and `rating_count` count published reviews only and are recalculated by a database trigger on every change, rounded to two decimals, so no code path can forget it.
+- **Comment** is optional, up to 500 characters; a rating alone is a valid review. There is no contact-detail filter on comments and replies (the bio has one): React escapes the text, and moderation catches the rest.
+- **The author is never shown:** the public sees "Avis vérifié par WhatsApp" and the date. The admin sees the reviewer's phone number (to recognise a repeat abuser).
+
+**Reply and reports**
+
+- **Teacher reply:** one per review, on a published review of their own profile, public at once, final (no edit), 1 to 500 characters. It is not moderated separately; an admin who hides the review hides the reply with it.
+- **A teacher sees only published reviews** of their own profile, never the new ones waiting for moderation.
+- **Reporting a review:** only the teacher it is about. Reasons (my wording): contenu inapproprié ou injurieux, faux avis, autre (note required). One open report per teacher and review; same hourly limit as profile reports. `reports.reason` gained `fake_review`; the database keeps profile reasons and review reasons apart.
+- **Admin decisions on a published review with open reports:** "Masquer" hides it and marks the reports upheld; "Garder" marks them dismissed and the review stays. A later report is possible. Banning abusive accounts, and the full reports screen, are M11.
+
+**Screens and code**
+
+- **Back to the profile after the WhatsApp sign-in:** the reviewer sign-in page takes `?retour=/prof/{slug}`, stores it in a 30-minute httpOnly cookie `tp_return` and, once the number is verified, goes back to it. Only addresses of the form `/prof/{slug}` are accepted, in the page, at storage and at use, so it can never send somebody to another site (tested).
+- **Forms are sent by hand** (`onSubmit` + `startTransition`) for the review, reply and report forms, like the profile form of M3, so a refusal does not empty them.
+- **The public profile page shows the 20 latest published reviews**; "see more" is a later improvement.
+- **Teacher navigation:** a "Mes avis" button on the teacher home, only for approved profiles.
+
 ## 2026-10-27 (owner approvals, after M5)
 
 - The owner approved all Arabic texts written up to M5 (`messages/ar.json`, the refusal reason templates, the Arabic catalogue names, `docs/GLOSSARY.md`) and the wording of the legal page stubs. The real legal texts (CGU, privacy policy, legal notice) are still to be provided and checked by a lawyer; nothing is invented.
