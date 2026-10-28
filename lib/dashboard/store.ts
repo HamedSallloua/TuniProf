@@ -108,26 +108,35 @@ export async function loadScheduledSessions(
   return rows.map((row) => toExisting(toSessionRow(row)));
 }
 
+/** A session to insert; its own origin (and, for a moved one, its first date) wins over the default. */
+export type NewSession = SessionDraft & {
+  origin?: SessionOrigin;
+  originalDate?: string | null;
+};
+
 /** Inserts many sessions of one group in one statement. */
 export async function insertSessions(
   client: PoolClient,
   teacherId: string,
   groupId: string,
-  drafts: SessionDraft[],
-  origin: 'rule' | 'extra' | 'manual' = 'rule',
+  drafts: NewSession[],
+  origin: SessionOrigin = 'rule',
 ): Promise<void> {
   if (drafts.length === 0) return;
   await client.query(
-    `INSERT INTO sessions (teacher_id, group_id, date, start_time, end_time, origin)
-     SELECT $1, $2, t.d, t.s::time, t.e::time, $6
-       FROM unnest($3::date[], $4::text[], $5::text[]) AS t(d, s, e)`,
+    `INSERT INTO sessions (teacher_id, group_id, date, start_time, end_time, origin,
+                           original_date)
+     SELECT $1, $2, t.d, t.s::time, t.e::time, t.o, t.od
+       FROM unnest($3::date[], $4::text[], $5::text[], $6::text[], $7::date[])
+            AS t(d, s, e, o, od)`,
     [
       teacherId,
       groupId,
       drafts.map((d) => d.date),
       drafts.map((d) => d.startTime),
       drafts.map((d) => d.endTime),
-      origin,
+      drafts.map((d) => d.origin ?? origin),
+      drafts.map((d) => d.originalDate ?? null),
     ],
   );
 }

@@ -15,11 +15,15 @@ import {
   type CalendarChangeResult,
   type CreateGroupResult,
 } from '@/lib/dashboard/groups';
-import type { ExistingSession } from '@/lib/dashboard/schedule';
 import {
-  addSession,
+  MAX_ADDED_SESSIONS,
+  type ExistingSession,
+} from '@/lib/dashboard/schedule';
+import {
+  addSessions,
   deleteSession,
   moveSession,
+  type AddSessionsResult,
   type SessionResult,
 } from '@/lib/dashboard/sessions';
 import { loadScheduledSessions } from '@/lib/dashboard/store';
@@ -42,6 +46,7 @@ const rule = z.object({
   startTime: time,
   endTime: time,
 });
+const slotSchema = z.object({ date, startTime: time, endTime: time });
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -65,7 +70,8 @@ export async function loadScheduledAction(
     !isValidDate(startDate) ||
     !isValidDate(endDate) ||
     endDate < startDate ||
-    endDate > addMonths(startDate, 14)
+    // Up to 18 months: the wizard loads whole calendar months around a period of 14 months.
+    endDate > addMonths(startDate, 18)
   )
     return { ok: false, reason: 'invalid' };
   return {
@@ -84,9 +90,12 @@ const groupSchema = z.object({
   startDate: date,
   endDate: date,
   rules: z.array(rule).max(21),
-  // Days picked by hand in a calendar (then `rules` is empty).
-  customSessions: z
-    .array(z.object({ date, startTime: time, endTime: time }))
+  // Days added by hand in a calendar (alone, `rules` is empty; or next to a weekly pattern).
+  customSessions: z.array(slotSchema).max(1000).optional(),
+  // Sessions of the weekly pattern that were deleted or edited in the wizard.
+  removedSessions: z.array(slotSchema).max(1000).optional(),
+  movedSessions: z
+    .array(z.object({ from: slotSchema, to: slotSchema }))
     .max(1000)
     .optional(),
   pricingModel: z.enum(['per_session', 'per_month']),
@@ -127,6 +136,13 @@ const changeSchema = z.object({
   endDate: date,
   rules: z.array(rule).max(21),
   resetModified: z.boolean(),
+  // Day-by-day changes (see lib/dashboard/calendar-change.ts).
+  addedSessions: z.array(slotSchema).max(500).optional(),
+  deletedSessionIds: z.array(uuid).max(500).optional(),
+  editedSessions: z
+    .array(z.object({ id: uuid, to: slotSchema }))
+    .max(500)
+    .optional(),
 });
 
 export async function changeCalendarAction(
@@ -182,8 +198,6 @@ export async function deleteSessionAction(formData: FormData): Promise<void> {
   );
 }
 
-const slotSchema = z.object({ date, startTime: time, endTime: time });
-
 export async function moveSessionAction(
   sessionId: string,
   slot: unknown,
@@ -203,14 +217,20 @@ export async function moveSessionAction(
   return result;
 }
 
-export async function addSessionAction(
+/** "Ajouter une séance": one or several rows for one group, all or nothing. */
+export async function addSessionsAction(
   input: unknown,
-): Promise<(SessionResult & { sessionId?: string }) | Blocked> {
+): Promise<AddSessionsResult | Blocked> {
   const who = await writableTeacher();
-  const parsed = slotSchema.extend({ groupId: uuid }).safeParse(input);
+  const parsed = z
+    .object({
+      groupId: uuid,
+      sessions: z.array(slotSchema).max(MAX_ADDED_SESSIONS),
+    })
+    .safeParse(input);
   if (!who.ok) return who;
   if (!parsed.success) return { ok: false, reason: 'invalid' };
-  const result = await addSession(getPool(), who.user.id, parsed.data);
+  const result = await addSessions(getPool(), who.user.id, parsed.data);
   if (result.ok) revalidate();
   return result;
 }

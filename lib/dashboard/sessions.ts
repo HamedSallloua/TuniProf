@@ -8,9 +8,10 @@ import {
   timeToMinutes,
   tunisNow,
 } from './dates';
-import type { ExistingSession } from './schedule';
+import { MAX_ADDED_SESSIONS, overlaps, type ExistingSession } from './schedule';
 import {
   EXCLUSION_VIOLATION,
+  insertSessions,
   loadScheduledSessions,
   SESSION_COLUMNS,
   toSessionRow,
@@ -229,6 +230,85 @@ export async function moveSession(
         [sessionId, slot.date, slot.startTime, slot.endTime],
       );
       return { ok: true } as const;
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code === EXCLUSION_VIOLATION)
+      return { ok: false, reason: 'conflict', conflicts: [] };
+    throw error;
+  }
+}
+
+export type AddSessionsResult =
+  | { ok: true; count: number }
+  | {
+      ok: false;
+      reason: SessionFailure | 'too_many' | 'empty';
+      /** The row (0-based) the failure belongs to, when it belongs to one. */
+      index?: number;
+      /** Overlaps, by row: with a session already in the calendar or with another new row. */
+      conflicts?: { index: number; with: ExistingSession }[];
+    };
+
+/**
+ * "Ajouter une séance" with several rows at once (owner request after M8): one extra session
+ * of one group for each row, all or nothing. A row that overlaps a session of the calendar, or
+ * another row, stops everything and is reported with the row it belongs to.
+ */
+export async function addSessions(
+  pool: Pool,
+  teacherId: string,
+  input: { groupId: string; sessions: SlotInput[] },
+  now: Date = new Date(),
+): Promise<AddSessionsResult> {
+  const rows = input.sessions;
+  if (rows.length === 0) return { ok: false, reason: 'empty' };
+  if (rows.length > MAX_ADDED_SESSIONS)
+    return { ok: false, reason: 'too_many' };
+  for (let index = 0; index < rows.length; index++) {
+    if (!validSlot(rows[index])) return { ok: false, reason: 'invalid', index };
+    if (isPast({ date: rows[index].date, endTime: rows[index].endTime }, now))
+      return { ok: false, reason: 'new_slot_in_past', index };
+  }
+
+  try {
+    return await withTeacherLock(pool, teacherId, async (client) => {
+      const group = await client.query<{ name: string }>(
+        `SELECT name FROM groups WHERE id = $1 AND teacher_id = $2`,
+        [input.groupId, teacherId],
+      );
+      if (group.rows.length === 0)
+        return { ok: false, reason: 'group_not_found' } as const;
+
+      const dates = rows.map((row) => row.date).sort();
+      const existing = await loadScheduledSessions(
+        client,
+        teacherId,
+        dates[0],
+        dates[dates.length - 1],
+      );
+
+      const conflicts: { index: number; with: ExistingSession }[] = [];
+      rows.forEach((row, index) => {
+        for (const session of existing)
+          if (session.date === row.date && overlaps(row, session))
+            conflicts.push({ index, with: session });
+        for (let before = 0; before < index; before++)
+          if (rows[before].date === row.date && overlaps(rows[before], row))
+            conflicts.push({
+              index,
+              with: {
+                id: `new-${before}`,
+                groupId: input.groupId,
+                groupName: group.rows[0].name,
+                ...rows[before],
+              },
+            });
+      });
+      if (conflicts.length > 0)
+        return { ok: false, reason: 'conflict', conflicts } as const;
+
+      await insertSessions(client, teacherId, input.groupId, rows, 'extra');
+      return { ok: true, count: rows.length } as const;
     });
   } catch (error) {
     if ((error as { code?: string }).code === EXCLUSION_VIOLATION)

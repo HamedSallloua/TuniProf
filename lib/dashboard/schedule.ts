@@ -44,6 +44,8 @@ export const NAME_MIN = 2;
 export const NAME_MAX = 50;
 export const MAX_PERIOD_MONTHS = 14;
 export const MAX_SLOTS_PER_DAY = 3;
+/** At most this many rows in one "Ajouter une séance" request. */
+export const MAX_ADDED_SESSIONS = 50;
 
 export function validateName(name: string): boolean {
   const length = name.trim().length;
@@ -195,6 +197,15 @@ export function validateCustomSessions(
 ): CustomSessionError | null {
   if (sessions.length === 0) return 'none';
   if (sessions.length > MAX_CUSTOM_SESSIONS) return 'too_many';
+  return checkSessions(sessions, startDate, endDate);
+}
+
+/** The per-session and per-day checks shared by hand-picked days and a whole planned group. */
+function checkSessions(
+  sessions: SessionDraft[],
+  startDate: string,
+  endDate: string,
+): CustomSessionError | null {
   for (const session of sessions) {
     if (
       !isValidDate(session.date) ||
@@ -254,11 +265,128 @@ export function generateSessions(
  * A new calendar never gets sessions that are already over: at 16:25 a 08:00-10:00 session of
  * today is left out (it would be a lesson in the past). A session in progress is kept.
  */
-export function withoutEnded(
-  drafts: SessionDraft[],
+export function withoutEnded<T extends SessionDraft>(
+  drafts: T[],
   now: Date = new Date(),
-): SessionDraft[] {
+): T[] {
   return drafts.filter((draft) => !isPast(draft, now));
+}
+
+// ------------------------------------------------------------- a group as the wizard plans it
+
+/** Where a planned session comes from: the weekly pattern, an edit of one, or a day added by hand. */
+export type PlannedOrigin = 'rule' | 'moved' | 'manual';
+
+export type PlannedSession = SessionDraft & {
+  origin: PlannedOrigin;
+  /** The date a moved session was generated on; null for the others. */
+  originalDate: string | null;
+};
+
+/** A session made by the weekly pattern that the teacher edited in the wizard. */
+export type SlotMove = { from: SessionDraft; to: SessionDraft };
+
+/**
+ * What the teacher changed by hand next to the weekly pattern (owner request after M8):
+ * `removed` and `moved` name sessions the pattern would generate (by date and times),
+ * `extras` are days added one by one. Without a pattern only `extras` count.
+ */
+export type Adjustments = {
+  removed: SessionDraft[];
+  moved: SlotMove[];
+  extras: SessionDraft[];
+};
+
+export const NO_ADJUSTMENTS: Adjustments = {
+  removed: [],
+  moved: [],
+  extras: [],
+};
+
+export function slotKey(slot: SessionDraft): string {
+  return `${slot.date}|${shortTime(slot.startTime)}|${shortTime(slot.endTime)}`;
+}
+
+export function sameSlot(a: SessionDraft, b: SessionDraft): boolean {
+  return slotKey(a) === slotKey(b);
+}
+
+function normalized(slot: SessionDraft): SessionDraft {
+  return {
+    date: slot.date,
+    startTime: shortTime(slot.startTime),
+    endTime: shortTime(slot.endTime),
+  };
+}
+
+/**
+ * Every session the new group will have: the pattern's sessions, minus the removed ones, with the
+ * edited ones at their new slot (origin `moved`, remembering the date they came from), plus the
+ * days added by hand (origin `manual`). An adjustment that names a session the pattern does not
+ * generate is ignored. Oldest first. The wizard preview and the server use this same function.
+ */
+export function planSessions(
+  rules: Rule[],
+  startDate: string,
+  endDate: string,
+  adjustments: Adjustments,
+): PlannedSession[] {
+  const generated =
+    rules.length > 0 ? generateSessions(rules, startDate, endDate) : [];
+  const removed = new Set(adjustments.removed.map(slotKey));
+  const moves = new Map(adjustments.moved.map((m) => [slotKey(m.from), m.to]));
+
+  const planned: PlannedSession[] = [];
+  for (const session of generated) {
+    const key = slotKey(session);
+    if (removed.has(key)) continue;
+    const to = moves.get(key);
+    if (to) {
+      planned.push({
+        ...normalized(to),
+        origin: 'moved',
+        originalDate: session.date,
+      });
+    } else {
+      planned.push({ ...session, origin: 'rule', originalDate: null });
+    }
+  }
+  for (const extra of adjustments.extras)
+    planned.push({
+      ...normalized(extra),
+      origin: 'manual',
+      originalDate: null,
+    });
+
+  return planned.sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
+  );
+}
+
+/**
+ * The checks on a planned group: every session inside the period, ending after it starts, at
+ * most three a day, none overlapping another of the same day. An empty plan is accepted only
+ * when there is a weekly pattern (a period whose sessions are all over, or all removed).
+ */
+export function validatePlan(
+  planned: SessionDraft[],
+  startDate: string,
+  endDate: string,
+  hasPattern: boolean,
+): CustomSessionError | null {
+  if (planned.length === 0) return hasPattern ? null : 'none';
+  return checkSessions(planned, startDate, endDate);
+}
+
+/** The first and last day of a list of dates, or null when it is empty. */
+export function periodOfDates(
+  dates: string[],
+): { start: string; end: string } | null {
+  if (dates.length === 0) return null;
+  const sorted = [...dates].sort();
+  return { start: sorted[0], end: sorted[sorted.length - 1] };
 }
 
 // ------------------------------------------------------------------------------ conflicts

@@ -967,7 +967,8 @@
     "flash": {
       "deleted": "Séance supprimée définitivement.",
       "moved": "Séance déplacée.",
-      "added": "Séance ajoutée."
+      "added": "Séance ajoutée.",
+      "added_many": "Les séances ont été ajoutées."
     },
     "sessionErrors": {
       "not_found": "Cette séance n'existe plus.",
@@ -977,6 +978,8 @@
       "new_slot_in_past": "La nouvelle date est déjà passée.",
       "group_not_found": "Ce groupe n'existe plus.",
       "conflict": "Cette séance chevauche une autre séance.",
+      "empty": "Ajoutez au moins une séance.",
+      "too_many": "Trop de séances d'un coup.",
       "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
       "no_access": "Votre Dashboard n'est plus actif.",
       "not_signed_in": "Reconnectez-vous pour continuer."
@@ -1048,10 +1051,20 @@
         "time_format": "Heure invalide.",
         "end_before_start": "L'heure de fin doit être après l'heure de début.",
         "overlap_same_day": "Deux séances du même jour se chevauchent.",
-        "too_many_slots": "Trois séances par jour au maximum."
+        "too_many_slots": "Trois séances par jour au maximum.",
+        "outside_period": "Une séance est en dehors de la période.",
+        "too_many": "Il y a trop de séances.",
+        "too_many_per_day": "Trois séances par jour au maximum."
       },
       "previewTitle": "Aperçu du calendrier",
       "previewHint": "Le petit nombre sous chaque jour est le total de séances de tous vos groupes. Touchez un jour pour voir sa journée.",
+      "previewEditHint": "Touchez un jour pour y ajouter une séance, ou pour modifier (date et heures) ou supprimer l'une de ses séances. Cela ne change que ce jour-là, pas les autres jours de la semaine.",
+      "showPreviousMonth": "Afficher le mois précédent",
+      "showNextMonth": "Afficher le mois suivant",
+      "adjust": {
+        "summary": "Changements faits jour par jour : {added, plural, =0 {aucune séance ajoutée} one {# séance ajoutée} other {# séances ajoutées}}, {changed, plural, =0 {aucune modifiée} one {# modifiée} other {# modifiées}}, {removed, plural, =0 {aucune supprimée} one {# supprimée} other {# supprimées}}.",
+        "reset": "Annuler ces changements"
+      },
       "legend": {
         "newDay": "Nouvelles séances",
         "conflictDay": "Conflit"
@@ -1063,7 +1076,29 @@
         "count": "{count, plural, =0 {aucune séance} one {# séance} other {# séances}}",
         "close": "Fermer",
         "empty": "Aucune séance ce jour.",
-        "timeline": "Chronologie de la journée"
+        "timeline": "Chronologie de la journée",
+        "yourSessions": "Séances de « {group} » ce jour",
+        "origin": {
+          "rule": "Semaine type",
+          "moved": "Modifiée",
+          "manual": "Ajoutée"
+        },
+        "locked": "Passée",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "newDate": "Nouvelle date",
+        "start": "Début",
+        "end": "Fin",
+        "confirm": "Confirmer",
+        "cancel": "Annuler",
+        "addTitle": "Ajouter une séance ce jour",
+        "addButton": "Ajouter",
+        "outOfRange": "On ne peut pas ajouter de séance ce jour : il est en dehors de la période ou déjà passé.",
+        "errors": {
+          "invalid": "L'heure de fin doit être après l'heure de début.",
+          "full": "Trois séances par jour au maximum.",
+          "overlap": "Cette séance chevauche une autre séance de ce groupe ce jour-là."
+        }
       },
       "pricingLabel": "Modèle de prix",
       "perSession": "Par séance",
@@ -1113,17 +1148,18 @@
       },
       "custom": {
         "pickTitle": "Choisissez les jours",
-        "pickHint": "Touchez chaque jour où le groupe a une séance, touchez-le encore pour l'enlever. Vous donnerez les heures à l'étape suivante.",
+        "pickHint": "Touchez chaque jour où le groupe a une séance, touchez-le encore pour l'enlever. Pas besoin de choisir une période : elle est calculée du premier au dernier jour choisi. Vous donnerez les heures à l'étape suivante.",
         "pickedCount": "{count, plural, =0 {Aucun jour choisi} one {# jour choisi} other {# jours choisis}}",
+        "computedPeriod": "Période calculée :",
         "needPeriod": "Choisissez d'abord une période valide.",
         "listTitle": "Liste des séances",
-        "listHint": "Une ligne par jour choisi : donnez l'heure de début et de fin de chaque séance. Le calendrier en dessous montre le résultat.",
+        "listHint": "Une ligne par jour choisi : donnez l'heure de début et de fin de chaque séance. Pour ajouter un autre jour, touchez-le dans le calendrier en dessous (même après la dernière date : la période s'agrandit toute seule).",
         "sameTimesTitle": "Mêmes heures pour tous les jours",
         "sameTimesHint": "Remplace les heures de tous les jours par une seule séance avec ces heures.",
         "applyToAll": "Appliquer à tous les jours",
         "removeDay": "Retirer ce jour",
         "errors": {
-          "none": "Choisissez au moins un jour."
+          "none": "Aucun jour pour le moment : touchez un jour dans le calendrier en dessous pour y ajouter une séance."
         }
       }
     },
@@ -1150,7 +1186,13 @@
     },
     "change": {
       "title": "Modifier le calendrier de « {name} »",
-      "intro": "Les changements s'appliquent à partir d'une date. Les séances passées ne sont jamais modifiées.",
+      "intro": "Changez la semaine type à partir d'une date, ou touchez un jour du calendrier pour y ajouter, modifier ou supprimer une séance. Les séances passées ne sont jamais modifiées. Rien n'est enregistré avant « Enregistrer le calendrier ».",
+      "introManual": "Touchez un jour du calendrier pour y ajouter une séance, ou pour modifier (date et heures) ou supprimer l'une de ses séances. Les séances passées ne sont jamais modifiées. Rien n'est enregistré avant « Enregistrer le calendrier ».",
+      "patternSection": "Semaine type",
+      "patternSectionHint": "Facultatif : laissez-la telle quelle si vous ne voulez changer que des jours précis dans le calendrier plus bas.",
+      "calendarHint": "Touchez un jour pour y ajouter une séance, ou pour modifier (date et heures) ou supprimer l'une de ses séances. Cela ne change que ce jour-là, pas les autres jours de la semaine. Un jour après la dernière date agrandit la période.",
+      "adjustSummary": "Changements faits jour par jour : {added, plural, =0 {aucune séance ajoutée} one {# séance ajoutée} other {# séances ajoutées}}, {changed, plural, =0 {aucune modifiée} one {# modifiée} other {# modifiées}}, {removed, plural, =0 {aucune supprimée} one {# supprimée} other {# supprimées}}.",
+      "adjustReset": "Annuler ces changements",
       "effective": "À partir du",
       "effectiveHint": "Par défaut aujourd'hui. Pas avant aujourd'hui.",
       "endDate": "Nouvelle date de fin",
@@ -1167,13 +1209,16 @@
         "invalid_rules": "Les séances de la semaine sont invalides.",
         "not_found": "Ce groupe n'existe plus.",
         "invalid": "Des informations sont invalides.",
+        "invalid_sessions": "Une séance ajoutée ou modifiée est invalide (heures, ou date déjà passée).",
+        "session_not_found": "Une des séances n'existe plus : rechargez la page.",
+        "past": "Une des séances est déjà passée : elle ne peut plus être modifiée.",
+        "conflicts": "Des séances se chevauchent.",
         "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
         "no_access": "Votre Dashboard n'est plus actif.",
         "not_signed_in": "Reconnectez-vous pour continuer.",
         "generic": "Le calendrier n'a pas pu être modifié. Réessayez."
       },
       "deletedNote": "Une séance supprimée une par une est recréée si la nouvelle semaine type la prévoit.",
-      "manualNote": "Ce groupe n'a pas de semaine type : ses jours ont été choisis dans un calendrier. Pour les changer, modifiez ses séances une par une (Supprimer, Modifier date, Ajouter une séance). Une semaine type ajoutée ici s'ajoute aux séances existantes.",
       "previewHint": "Vos séances actuelles pour ce groupe. Cliquez sur « Voir ce qui va changer » pour voir les jours ajoutés et retirés."
     },
     "preview": {
@@ -1246,6 +1291,10 @@
       "start": "Début",
       "end": "Fin",
       "confirm": "Ajouter",
+      "confirmMany": "Ajouter les séances ({count})",
+      "addRow": "Ajouter un autre jour",
+      "removeRow": "Retirer",
+      "rowTitle": "Séance {n}",
       "back": "Retour"
     },
     "search": {

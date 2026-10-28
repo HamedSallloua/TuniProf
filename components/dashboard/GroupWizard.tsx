@@ -18,7 +18,13 @@ import {
   secondaryButtonClass,
 } from '@/components/auth/styles';
 import { useRouter } from '@/i18n/navigation';
-import { monthsBetween } from '@/lib/dashboard/dates';
+import {
+  addMonths,
+  endOfMonth,
+  monthOf,
+  monthsBetween,
+  startOfMonth,
+} from '@/lib/dashboard/dates';
 import {
   formatDay,
   monthTitle,
@@ -29,18 +35,23 @@ import {
   countByDate,
   endDateAfterWeeks,
   findConflicts,
-  generateSessions,
   MAX_PERIOD_WEEKS,
   periodDays,
+  periodOfDates,
+  planSessions,
+  sameSlot,
   summarizeRules,
-  validateCustomSessions,
   validateName,
   validatePeriod,
+  validatePlan,
   validateRules,
   withoutEnded,
   type Conflict,
   type ExistingSession,
+  type PlannedSession,
   type Rule,
+  type SessionDraft,
+  type SlotMove,
 } from '@/lib/dashboard/schedule';
 import { parseDinarsToMillimes } from '@/lib/marketplace/search-params';
 import { ConflictList, type ConflictLine } from './ConflictList';
@@ -57,14 +68,19 @@ import {
   DEFAULT_CUSTOM_SLOT,
   type CustomDays,
 } from './CustomSessionsEditor';
-import { DayTimeline, type TimelineItem } from './DayTimeline';
+import { DayPicker } from './DayPicker';
+import type { TimelineItem } from './DayTimeline';
 import { MonthGrid } from './MonthGrid';
+import { WizardDayOverlay } from './WizardDayOverlay';
 
 // The group wizard (spec 5.2): name, period, weekly pattern (or days picked in a calendar)
 // with a live preview, price.
 // Everything shown here is also checked by the server when the group is created.
 
 const STEPS = ['name', 'period', 'pattern', 'price'] as const;
+
+/** How far ahead (in months from today) a day can be picked when there is no period. */
+const PICK_MONTHS_AHEAD = 26;
 
 export function toConflictLines(conflicts: Conflict[]): ConflictLine[] {
   return conflicts.map((c) => ({
@@ -85,34 +101,36 @@ export function GroupWizard({ today }: { today: string }) {
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [start, setStart] = useState(today);
+  // How the days of the group are chosen: by weekday (the weekly pattern of step 3) or by
+  // picking each day in a calendar. With the calendar there is no period to give: it is the
+  // first to the last picked day.
+  const [dayMode, setDayMode] = useState<'weekly' | 'calendar'>('weekly');
+  const [startPicked, setStartPicked] = useState(today);
   // The end of the period is either picked as a date or given as a number of weeks from the
-  // first day (the teacher chooses which); `end` is whatever the chosen way gives.
+  // first day (the teacher chooses which); `weeklyEnd` is whatever the chosen way gives.
   const [endMode, setEndMode] = useState<'date' | 'weeks'>('date');
   const [endPicked, setEndPicked] = useState('');
   const [weeks, setWeeks] = useState('');
   const weeksCount = /^\d{1,3}$/.test(weeks.trim())
     ? Number(weeks.trim())
     : NaN;
-  const weeksEnd = endDateAfterWeeks(start, weeksCount);
-  const end = endMode === 'date' ? endPicked : (weeksEnd ?? '');
-  // How the days of the group are chosen: by weekday (the weekly pattern of step 3) or by
-  // picking each day in a calendar (then step 3 is the list of those sessions).
-  const [dayMode, setDayMode] = useState<'weekly' | 'calendar'>('weekly');
+  const weeksEnd = endDateAfterWeeks(startPicked, weeksCount);
+  const weeklyEnd = endMode === 'date' ? endPicked : (weeksEnd ?? '');
+
   const [days, setDays] = useState<Days>({});
+  // Days added by hand, date -> sessions: the whole group (calendar mode) or extra specific days
+  // next to the weekly pattern.
   const [custom, setCustom] = useState<CustomDays>({});
+  // Sessions of the weekly pattern that were deleted or edited one by one in the preview.
+  const [removed, setRemoved] = useState<SessionDraft[]>([]);
+  const [moved, setMoved] = useState<SlotMove[]>([]);
+  // Calendar mode: how many months the preview shows before and after the picked days.
+  const [monthsBefore, setMonthsBefore] = useState(0);
+  const [monthsAfter, setMonthsAfter] = useState(0);
   const [pricing, setPricing] = useState<'per_session' | 'per_month'>(
     'per_session',
   );
   const [price, setPrice] = useState('');
-  // The teacher's sessions of the chosen period, tagged with the period they were loaded for:
-  // when the period changes they count as "not loaded yet" until the new ones arrive.
-  const [loaded, setLoaded] = useState<{
-    key: string;
-    sessions: ExistingSession[];
-  } | null>(null);
-  const periodKey = `${start}|${end}`;
-  const existing = loaded?.key === periodKey ? loaded.sessions : null;
   const [openDay, setOpenDay] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [serverConflicts, setServerConflicts] = useState<Conflict[] | null>(
@@ -121,65 +139,117 @@ export function GroupWizard({ today }: { today: string }) {
   const [pending, startTransition] = useTransition();
 
   // ---------------------------------------------------------------- what the form means
+  const pickedPeriod = periodOfDates(Object.keys(custom));
+  const start =
+    dayMode === 'weekly' ? startPicked : (pickedPeriod?.start ?? '');
+  const end = dayMode === 'weekly' ? weeklyEnd : (pickedPeriod?.end ?? '');
   const periodError = validatePeriod(start, end);
+
   const rules: Rule[] = useMemo(
     () => (dayMode === 'weekly' ? rulesFromDays(days) : []),
     [dayMode, days],
   );
   const rulesCheck = useMemo(() => validateRules(rules), [rules]);
-  const customList = useMemo(
+  // A pattern with a mistake makes no sessions yet, but the days added by hand stay visible.
+  const activeRules = useMemo(
+    () => (rulesCheck.ok ? rules : []),
+    [rules, rulesCheck],
+  );
+  const extras = useMemo(
     () => customSessionsOf(custom, start, end),
     [custom, start, end],
   );
   const customDates = useMemo(
-    () => [...new Set(customList.map((s) => s.date))],
-    [customList],
-  );
-  const customError = useMemo(
-    () =>
-      periodError ? 'none' : validateCustomSessions(customList, start, end),
-    [periodError, customList, start, end],
+    () => [...new Set(extras.map((s) => s.date))],
+    [extras],
   );
   const customErrors = useMemo(() => customDayErrors(custom), [custom]);
-  // The sessions the form means, whichever way the days were chosen.
-  const patternOk = dayMode === 'weekly' ? rulesCheck.ok : customError === null;
+
+  // Every session the new group will have, and what is wrong with them.
+  const planned = useMemo(
+    () =>
+      periodError
+        ? []
+        : planSessions(activeRules, start, end, {
+            removed: dayMode === 'weekly' ? removed : [],
+            moved: dayMode === 'weekly' ? moved : [],
+            extras,
+          }),
+    [periodError, activeRules, start, end, dayMode, removed, moved, extras],
+  );
+  const planError = useMemo(
+    () =>
+      periodError
+        ? 'none'
+        : validatePlan(planned, start, end, activeRules.length > 0),
+    [periodError, planned, start, end, activeRules],
+  );
+  const patternOk =
+    !periodError &&
+    planError === null &&
+    (dayMode === 'calendar' || rulesCheck.ok);
   // A session of today that is already over is not created (the server does the same).
   const [now] = useState(() => new Date());
-  const allDrafts = useMemo(
-    () =>
-      periodError || !patternOk
-        ? []
-        : dayMode === 'weekly'
-          ? generateSessions(rules, start, end)
-          : customList,
-    [periodError, patternOk, dayMode, rules, customList, start, end],
-  );
-  const drafts = useMemo(() => withoutEnded(allDrafts, now), [allDrafts, now]);
-  const skippedCount = allDrafts.length - drafts.length;
-  const conflicts = useMemo(
-    () => (existing ? findConflicts(drafts, existing) : []),
-    [drafts, existing],
-  );
+  const drafts = useMemo(() => withoutEnded(planned, now), [planned, now]);
+  const skippedCount = planned.length - drafts.length;
   const priceMillimes =
     price.trim() === '' ? null : parseDinarsToMillimes(price);
   const priceInvalid = price.trim() !== '' && priceMillimes === null;
 
-  // ------------------------------------------------- the teacher's sessions in the period
+  // ------------------------------------------------------ the months of the preview calendar
+  const months = useMemo(() => {
+    if (dayMode === 'weekly')
+      return periodError ? [] : monthsBetween(start, end);
+    const first = startOfMonth(pickedPeriod?.start ?? today);
+    const last = startOfMonth(pickedPeriod?.end ?? today);
+    return monthsBetween(
+      addMonths(first, -monthsBefore),
+      addMonths(last, monthsAfter),
+    );
+  }, [
+    dayMode,
+    periodError,
+    start,
+    end,
+    pickedPeriod?.start,
+    pickedPeriod?.end,
+    today,
+    monthsBefore,
+    monthsAfter,
+  ]);
+  const windowStart = months.length > 0 ? `${months[0]}-01` : '';
+  const windowEnd =
+    months.length > 0 ? endOfMonth(`${months[months.length - 1]}-01`) : '';
+  const windowKey = `${windowStart}|${windowEnd}`;
+
+  // ------------------------------------------------- the teacher's sessions in those months
+  // Tagged with the months they were loaded for: when the months change they count as "not
+  // loaded yet" until the new ones arrive.
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    sessions: ExistingSession[];
+  } | null>(null);
+  const existing = loaded?.key === windowKey ? loaded.sessions : null;
+
   useEffect(() => {
-    if (step !== 2 || periodError) return;
+    if (step !== 2 || !windowStart) return;
     let cancelled = false;
-    loadScheduledAction(start, end).then((result) => {
+    loadScheduledAction(windowStart, windowEnd).then((result) => {
       if (!cancelled)
         setLoaded({
-          key: `${start}|${end}`,
+          key: `${windowStart}|${windowEnd}`,
           sessions: result.ok ? result.sessions : [],
         });
     });
     return () => {
       cancelled = true;
     };
-  }, [step, start, end, periodError]);
+  }, [step, windowStart, windowEnd]);
 
+  const conflicts = useMemo(
+    () => (existing ? findConflicts(drafts, existing) : []),
+    [drafts, existing],
+  );
   const dayErrors = useMemo(
     () => dayErrorsOf(rules, rulesCheck),
     [rules, rulesCheck],
@@ -197,10 +267,6 @@ export function GroupWizard({ today }: { today: string }) {
   const conflictDates = useMemo(
     () => new Set(conflicts.map((c) => c.draft.date)),
     [conflicts],
-  );
-  const months = useMemo(
-    () => (periodError ? [] : monthsBetween(start, end)),
-    [periodError, start, end],
   );
 
   const dayItems = useCallback(
@@ -228,6 +294,86 @@ export function GroupWizard({ today }: { today: string }) {
     [existing, drafts, name, conflictDates, t],
   );
 
+  // ----------------------------------------- changing one day in the preview (day overlay)
+  const withoutExtra = (
+    current: CustomDays,
+    slot: SessionDraft,
+  ): CustomDays => {
+    const left = (current[slot.date] ?? []).filter(
+      (s) => s.startTime !== slot.startTime || s.endTime !== slot.endTime,
+    );
+    const next = { ...current };
+    if (left.length > 0) next[slot.date] = left;
+    else delete next[slot.date];
+    return next;
+  };
+  const withExtra = (current: CustomDays, slot: SessionDraft): CustomDays => ({
+    ...current,
+    [slot.date]: [
+      ...(current[slot.date] ?? []),
+      { startTime: slot.startTime, endTime: slot.endTime },
+    ],
+  });
+  const movedEntryOf = (session: PlannedSession) =>
+    moved.find(
+      (m) => m.from.date === session.originalDate && sameSlot(m.to, session),
+    );
+
+  const slotOf = (s: SessionDraft): SessionDraft => ({
+    date: s.date,
+    startTime: s.startTime,
+    endTime: s.endTime,
+  });
+
+  function addToDay(slot: SessionDraft) {
+    setCustom((current) => withExtra(current, slot));
+  }
+  function deleteFromDay(session: PlannedSession) {
+    if (session.origin === 'manual') {
+      setCustom((current) => withoutExtra(current, session));
+    } else if (session.origin === 'rule') {
+      setRemoved((current) => [...current, slotOf(session)]);
+    } else {
+      const entry = movedEntryOf(session);
+      if (!entry) return;
+      setMoved((current) => current.filter((m) => m !== entry));
+      setRemoved((current) => [...current, entry.from]);
+    }
+  }
+  function editInDay(session: PlannedSession, to: SessionDraft) {
+    if (session.origin === 'manual') {
+      setCustom((current) => withExtra(withoutExtra(current, session), to));
+    } else if (session.origin === 'rule') {
+      setMoved((current) => [
+        ...current,
+        { from: slotOf(session), to: slotOf(to) },
+      ]);
+    } else {
+      const entry = movedEntryOf(session);
+      if (!entry) return;
+      // Put back on the slot it came from: it is simply a pattern session again.
+      setMoved((current) =>
+        current.flatMap((m) =>
+          m !== entry
+            ? [m]
+            : sameSlot(m.from, to)
+              ? []
+              : [{ from: m.from, to }],
+        ),
+      );
+    }
+  }
+
+  function chooseDayMode(mode: 'weekly' | 'calendar') {
+    if (mode === dayMode) return;
+    setDayMode(mode);
+    setCustom({});
+    setRemoved([]);
+    setMoved([]);
+    setMonthsBefore(0);
+    setMonthsAfter(0);
+  }
+
   // ---------------------------------------------------------------------- navigation
   const canNext =
     (step === 0 && validateName(name)) ||
@@ -244,8 +390,13 @@ export function GroupWizard({ today }: { today: string }) {
         name,
         startDate: start,
         endDate: end,
-        rules,
-        customSessions: dayMode === 'calendar' ? customList : undefined,
+        rules: activeRules,
+        customSessions:
+          dayMode === 'calendar' || extras.length > 0 ? extras : undefined,
+        removedSessions:
+          dayMode === 'weekly' && removed.length > 0 ? removed : undefined,
+        movedSessions:
+          dayMode === 'weekly' && moved.length > 0 ? moved : undefined,
         pricingModel: pricing,
         referencePriceMillimes: priceMillimes,
       });
@@ -276,6 +427,26 @@ export function GroupWizard({ today }: { today: string }) {
     });
   const shownConflicts =
     serverConflicts && serverConflicts.length > 0 ? serverConflicts : conflicts;
+
+  const periodText = (periodStart: string, periodEnd: string) =>
+    t('periodSummary', {
+      start: formatDay(periodStart, locale, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      end: formatDay(periodEnd, locale, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      days: periodDays(periodStart, periodEnd),
+    });
+
+  const adjustmentCount = removed.length + moved.length + extras.length;
+  // The days the overlay may add to or move a session to.
+  const minDate = dayMode === 'weekly' && start > today ? start : today;
+  const maxDate = dayMode === 'weekly' ? end : null;
 
   return (
     <div className="space-y-6">
@@ -346,104 +517,7 @@ export function GroupWizard({ today }: { today: string }) {
 
       {/* --------------------------------------------------------------- 2. period */}
       {step === 1 && (
-        <section className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label htmlFor="group-start" className="block font-medium">
-                {t('startLabel')}
-              </label>
-              <input
-                id="group-start"
-                type="date"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <fieldset className="space-y-2">
-            <legend className="font-medium">{t('endMode.label')}</legend>
-            {(['date', 'weeks'] as const).map((mode) => (
-              <label key={mode} className="flex min-h-11 items-center gap-3">
-                <input
-                  type="radio"
-                  name="end-mode"
-                  checked={endMode === mode}
-                  onChange={() => setEndMode(mode)}
-                  className="size-5 accent-primary"
-                />
-                {t(`endMode.${mode}`)}
-              </label>
-            ))}
-          </fieldset>
-          {endMode === 'date' ? (
-            <div className="space-y-1">
-              <label htmlFor="group-end" className="block font-medium">
-                {t('endLabel')}
-              </label>
-              <input
-                id="group-end"
-                type="date"
-                value={endPicked}
-                onChange={(e) => setEndPicked(e.target.value)}
-                className={inputClass + ' sm:!w-56'}
-              />
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <label htmlFor="group-weeks" className="block font-medium">
-                {t('weeksLabel')}
-              </label>
-              <input
-                id="group-weeks"
-                inputMode="numeric"
-                dir="ltr"
-                value={weeks}
-                onChange={(e) => setWeeks(e.target.value)}
-                className={inputClass + ' text-start sm:!w-32'}
-                aria-describedby="group-weeks-hint"
-              />
-              <p
-                id="group-weeks-hint"
-                className={
-                  'text-sm ' +
-                  (weeks.trim() !== '' && weeksEnd === null
-                    ? 'text-accent'
-                    : 'text-muted')
-                }
-              >
-                {weeks.trim() !== '' && weeksEnd === null
-                  ? t('weeksError', { max: MAX_PERIOD_WEEKS })
-                  : t('weeksHint', { max: MAX_PERIOD_WEEKS })}
-              </p>
-            </div>
-          )}
-          {end !== '' && (
-            <p
-              role="status"
-              className={
-                'text-sm ' +
-                (periodError ? 'text-accent' : 'font-medium text-primary')
-              }
-            >
-              {periodError
-                ? t(`periodErrors.${periodError}`)
-                : t('periodSummary', {
-                    start: formatDay(start, locale, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    }),
-                    end: formatDay(end, locale, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    }),
-                    days: periodDays(start, end),
-                  })}
-            </p>
-          )}
-
+        <section className="space-y-5">
           <fieldset className="space-y-2">
             <legend className="font-medium">{t('dayMode.label')}</legend>
             {(['weekly', 'calendar'] as const).map((mode) => (
@@ -452,7 +526,7 @@ export function GroupWizard({ today }: { today: string }) {
                   type="radio"
                   name="day-mode"
                   checked={dayMode === mode}
-                  onChange={() => setDayMode(mode)}
+                  onChange={() => chooseDayMode(mode)}
                   className="size-5 accent-primary"
                 />
                 {t(`dayMode.${mode}`)}
@@ -460,7 +534,111 @@ export function GroupWizard({ today }: { today: string }) {
             ))}
           </fieldset>
 
-          {dayMode === 'calendar' && (
+          {dayMode === 'weekly' ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <p className="font-medium">
+                    {t('startLabel')}
+                    {startPicked !== '' &&
+                      ` : ${formatDay(startPicked, locale, { dateStyle: 'medium' })}`}
+                  </p>
+                  <DayPicker
+                    initialMonth={monthOf(startPicked || today)}
+                    isSelected={(date) => date === startPicked}
+                    isDisabled={() => false}
+                    onPick={setStartPicked}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <fieldset className="space-y-1">
+                    <legend className="font-medium">
+                      {t('endMode.label')}
+                    </legend>
+                    {(['date', 'weeks'] as const).map((mode) => (
+                      <label
+                        key={mode}
+                        className="flex min-h-11 items-center gap-3"
+                      >
+                        <input
+                          type="radio"
+                          name="end-mode"
+                          checked={endMode === mode}
+                          onChange={() => setEndMode(mode)}
+                          className="size-5 accent-primary"
+                        />
+                        {t(`endMode.${mode}`)}
+                      </label>
+                    ))}
+                  </fieldset>
+                  {endMode === 'date' ? (
+                    <>
+                      <p className="font-medium">
+                        {t('endLabel')}
+                        {endPicked !== '' &&
+                          ` : ${formatDay(endPicked, locale, { dateStyle: 'medium' })}`}
+                      </p>
+                      <DayPicker
+                        initialMonth={monthOf(
+                          endPicked || startPicked || today,
+                        )}
+                        isSelected={(date) => date === endPicked}
+                        isDisabled={(date) =>
+                          startPicked !== '' && date < startPicked
+                        }
+                        onPick={setEndPicked}
+                      />
+                    </>
+                  ) : (
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="group-weeks"
+                        className="block font-medium"
+                      >
+                        {t('weeksLabel')}
+                      </label>
+                      <input
+                        id="group-weeks"
+                        inputMode="numeric"
+                        dir="ltr"
+                        value={weeks}
+                        onChange={(e) => setWeeks(e.target.value)}
+                        className={inputClass + ' text-start sm:!w-32'}
+                        aria-describedby="group-weeks-hint"
+                      />
+                      <p
+                        id="group-weeks-hint"
+                        className={
+                          'text-sm ' +
+                          (weeks.trim() !== '' && weeksEnd === null
+                            ? 'text-accent'
+                            : 'text-muted')
+                        }
+                      >
+                        {weeks.trim() !== '' && weeksEnd === null
+                          ? t('weeksError', { max: MAX_PERIOD_WEEKS })
+                          : t('weeksHint', { max: MAX_PERIOD_WEEKS })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {end !== '' && (
+                <p
+                  role="status"
+                  className={
+                    'text-sm ' +
+                    (periodError ? 'text-accent' : 'font-medium text-primary')
+                  }
+                >
+                  {periodError
+                    ? t(`periodErrors.${periodError}`)
+                    : periodText(start, end)}
+                </p>
+              )}
+            </>
+          ) : (
             <div className="space-y-3">
               <div>
                 <h2 className="text-lg font-semibold text-primary">
@@ -471,55 +649,28 @@ export function GroupWizard({ today }: { today: string }) {
                   {t('custom.pickedCount', { count: customDates.length })}
                 </p>
               </div>
-              {periodError ? (
-                <p className="text-sm text-muted">{t('custom.needPeriod')}</p>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2">
-                  {months.map((month) => (
-                    <div
-                      key={month}
-                      className="rounded-card border border-border bg-surface p-3"
-                    >
-                      <h3 className="mb-2 text-center font-medium first-letter:uppercase">
-                        {monthTitle(month, locale)}
-                      </h3>
-                      <MonthGrid
-                        month={month}
-                        weekdayLabels={weekLabels}
-                        renderDay={(date) => {
-                          const selectable =
-                            date >= start && date <= end && date >= today;
-                          const picked = Boolean(custom[date]);
-                          return (
-                            <button
-                              type="button"
-                              onClick={() => toggleCustomDay(date)}
-                              disabled={!selectable}
-                              aria-pressed={picked}
-                              aria-label={formatDay(date, locale, {
-                                dateStyle: 'full',
-                              })}
-                              className="flex min-h-11 w-9 items-center justify-center rounded-md disabled:opacity-40"
-                            >
-                              <span
-                                className={
-                                  'flex size-8 items-center justify-center rounded-full text-sm ' +
-                                  (picked
-                                    ? 'bg-primary font-semibold text-primary-foreground'
-                                    : selectable
-                                      ? 'hover:bg-secondary'
-                                      : '')
-                                }
-                              >
-                                {Number(date.slice(8))}
-                              </span>
-                            </button>
-                          );
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
+              <div className="max-w-md">
+                <DayPicker
+                  initialMonth={monthOf(today)}
+                  minMonth={monthOf(today)}
+                  maxMonth={monthOf(addMonths(today, PICK_MONTHS_AHEAD))}
+                  isSelected={(date) => Boolean(custom[date])}
+                  isDisabled={(date) => date < today}
+                  onPick={toggleCustomDay}
+                />
+              </div>
+              {pickedPeriod && (
+                <p
+                  role="status"
+                  className={
+                    'text-sm ' +
+                    (periodError ? 'text-accent' : 'font-medium text-primary')
+                  }
+                >
+                  {periodError
+                    ? t(`periodErrors.${periodError}`)
+                    : `${t('custom.computedPeriod')} ${periodText(start, end)}`}
+                </p>
               )}
             </div>
           )}
@@ -578,6 +729,7 @@ export function GroupWizard({ today }: { today: string }) {
                 {t('previewTitle')}
               </h2>
               <p className="text-sm text-muted">{t('previewHint')}</p>
+              <p className="mt-1 text-sm text-muted">{t('previewEditHint')}</p>
               <p className="mt-1 flex flex-wrap gap-x-4 text-xs">
                 <span className="inline-flex items-center gap-1">
                   <span
@@ -596,13 +748,47 @@ export function GroupWizard({ today }: { today: string }) {
               </p>
             </div>
 
+            {dayMode === 'weekly' && adjustmentCount > 0 && (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <p role="status">
+                  {t('adjust.summary', {
+                    added: extras.length,
+                    changed: moved.length,
+                    removed: removed.length,
+                  })}
+                </p>
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  onClick={() => {
+                    setCustom({});
+                    setRemoved([]);
+                    setMoved([]);
+                  }}
+                >
+                  {t('adjust.reset')}
+                </button>
+              </div>
+            )}
+
+            {periodError && dayMode === 'calendar' && pickedPeriod && (
+              <p role="alert" className="text-sm text-accent">
+                {t(`periodErrors.${periodError}`)}
+              </p>
+            )}
+            {planError && planError !== 'none' && (
+              <p role="alert" className="text-sm text-accent">
+                {t(`ruleErrors.${planError}` as 'ruleErrors.none')}
+              </p>
+            )}
+
             {skippedCount > 0 && (
               <p role="status" className="text-sm text-muted">
                 {t('previewSkipped', { count: skippedCount })}
               </p>
             )}
 
-            {existing === null && !periodError && (
+            {existing === null && months.length > 0 && (
               <p role="status" className="text-sm text-muted">
                 {t('loadingExisting')}
               </p>
@@ -613,6 +799,26 @@ export function GroupWizard({ today }: { today: string }) {
             )}
             {shownConflicts.length > 0 && (
               <p className="text-sm text-accent">{t('conflictsBlock')}</p>
+            )}
+
+            {dayMode === 'calendar' && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  disabled={months.length === 0 || months[0] <= monthOf(today)}
+                  onClick={() => setMonthsBefore((n) => n + 1)}
+                >
+                  {t('showPreviousMonth')}
+                </button>
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  onClick={() => setMonthsAfter((n) => n + 1)}
+                >
+                  {t('showNextMonth')}
+                </button>
+              </div>
             )}
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -628,7 +834,10 @@ export function GroupWizard({ today }: { today: string }) {
                     month={month}
                     weekdayLabels={weekLabels}
                     renderDay={(date) => {
-                      const inPeriod = date >= start && date <= end;
+                      const usable =
+                        dayMode === 'weekly'
+                          ? date >= start && date <= end
+                          : date >= today;
                       const isNew = draftDates.has(date);
                       const isConflict = conflictDates.has(date);
                       const count = counts.get(date) ?? 0;
@@ -636,7 +845,7 @@ export function GroupWizard({ today }: { today: string }) {
                         <button
                           type="button"
                           onClick={() => setOpenDay(date)}
-                          disabled={!inPeriod}
+                          disabled={!usable}
                           aria-label={`${formatDay(date, locale, { dateStyle: 'full' })}, ${t('dayOverlay.count', { count })}`}
                           className="flex min-h-11 w-9 flex-col items-center justify-start gap-0.5 rounded-md py-0.5 disabled:opacity-40"
                         >
@@ -721,7 +930,7 @@ export function GroupWizard({ today }: { today: string }) {
               <dd>
                 {dayMode === 'calendar'
                   ? t('summary.pickedDays', { count: customDates.length })
-                  : summarizeRules(rules)
+                  : summarizeRules(activeRules)
                       .map(
                         (d) =>
                           `${weekdayName(d.weekday, locale)} ${d.slots.map((s) => `${s.startTime}-${s.endTime}`).join(', ')}`,
@@ -779,39 +988,21 @@ export function GroupWizard({ today }: { today: string }) {
         )}
       </div>
 
-      {/* ------------------------------------------- read-only day overlay (preview) */}
+      {/* ------------------------------------------------------------- day overlay */}
       {openDay && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={formatDay(openDay, locale, { dateStyle: 'full' })}
-          className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 sm:items-center"
-          onKeyDown={(event) => event.key === 'Escape' && setOpenDay(null)}
-        >
-          <div className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-t-card bg-surface p-4 sm:rounded-card">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold text-primary">
-                {formatDay(openDay, locale, { dateStyle: 'full' })}
-              </h2>
-              <button
-                type="button"
-                autoFocus
-                className={secondaryButtonClass}
-                onClick={() => setOpenDay(null)}
-              >
-                {t('dayOverlay.close')}
-              </button>
-            </div>
-            {dayItems(openDay).length === 0 ? (
-              <p className="text-muted">{t('dayOverlay.empty')}</p>
-            ) : (
-              <DayTimeline
-                items={dayItems(openDay)}
-                ariaLabel={t('dayOverlay.timeline')}
-              />
-            )}
-          </div>
-        </div>
+        <WizardDayOverlay
+          key={openDay}
+          date={openDay}
+          groupName={name.trim() || t('dayOverlay.newGroup')}
+          planned={drafts.filter((d) => d.date === openDay)}
+          items={dayItems(openDay)}
+          minDate={minDate}
+          maxDate={maxDate}
+          onAdd={addToDay}
+          onEdit={editInDay}
+          onDelete={deleteFromDay}
+          onClose={() => setOpenDay(null)}
+        />
       )}
     </div>
   );

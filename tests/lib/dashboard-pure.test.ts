@@ -20,14 +20,19 @@ import {
   findConflicts,
   generateSessions,
   hasSlotChanged,
+  NO_ADJUSTMENTS,
   overlaps,
   periodDays,
+  periodOfDates,
+  planSessions,
   summarizeRules,
   validateCustomSessions,
   validateName,
   validatePeriod,
+  validatePlan,
   validateRules,
   withoutEnded,
+  type Adjustments,
   type ExistingSession,
   type Rule,
 } from '@/lib/dashboard/schedule';
@@ -194,6 +199,138 @@ describe('days picked by hand', () => {
         slot('2026-09-09', '11:00', '12:00'),
       ]),
     ).toBe('too_many_per_day');
+  });
+});
+
+describe('the period of days picked in a calendar', () => {
+  it('is the first to the last picked day, whatever the order', () => {
+    expect(periodOfDates([])).toBeNull();
+    expect(periodOfDates(['2026-12-05'])).toEqual({
+      start: '2026-12-05',
+      end: '2026-12-05',
+    });
+    expect(periodOfDates(['2026-12-09', '2026-12-01', '2026-12-05'])).toEqual({
+      start: '2026-12-01',
+      end: '2026-12-09',
+    });
+  });
+
+  it('grows when a later day is added (owner example: 1, 5, 9 December, then 12 December)', () => {
+    const picked = ['2026-12-01', '2026-12-05', '2026-12-09'];
+    expect(periodOfDates(picked)?.end).toBe('2026-12-09');
+    expect(periodOfDates([...picked, '2026-12-12'])).toEqual({
+      start: '2026-12-01',
+      end: '2026-12-12',
+    });
+  });
+});
+
+describe('a group planned from a weekly pattern and days adjusted by hand', () => {
+  // Sundays 08:00-10:00 from Wed 28 Oct to Tue 24 Nov 2026: the 1st, 8th, 15th and 22nd.
+  const sundays = [rule(7, 1, '08:00', '10:00')];
+  const slot = (date: string, startTime = '08:00', endTime = '10:00') => ({
+    date,
+    startTime,
+    endTime,
+  });
+  const plan = (adjustments: Partial<Adjustments>) =>
+    planSessions(sundays, '2026-10-28', '2026-11-24', {
+      ...NO_ADJUSTMENTS,
+      ...adjustments,
+    });
+
+  it('is exactly the pattern when nothing was adjusted', () => {
+    expect(plan({}).map((s) => `${s.date} ${s.origin}`)).toEqual([
+      '2026-11-01 rule',
+      '2026-11-08 rule',
+      '2026-11-15 rule',
+      '2026-11-22 rule',
+    ]);
+  });
+
+  it('adds only the chosen day, not every Saturday (owner example: Saturday 21 November 16:00-18:00)', () => {
+    const planned = plan({ extras: [slot('2026-11-21', '16:00', '18:00')] });
+    expect(planned).toHaveLength(5);
+    expect(planned.filter((s) => weekdayOf(s.date) === 6)).toEqual([
+      {
+        date: '2026-11-21',
+        startTime: '16:00',
+        endTime: '18:00',
+        origin: 'manual',
+        originalDate: null,
+      },
+    ]);
+  });
+
+  it('deletes only the named session', () => {
+    const planned = plan({ removed: [slot('2026-11-22')] });
+    expect(planned.map((s) => s.date)).toEqual([
+      '2026-11-01',
+      '2026-11-08',
+      '2026-11-15',
+    ]);
+  });
+
+  it('edits the date and time of one session and remembers where it came from', () => {
+    const planned = plan({
+      moved: [
+        { from: slot('2026-11-22'), to: slot('2026-11-23', '14:00', '16:00') },
+      ],
+    });
+    expect(planned.at(-1)).toEqual({
+      date: '2026-11-23',
+      startTime: '14:00',
+      endTime: '16:00',
+      origin: 'moved',
+      originalDate: '2026-11-22',
+    });
+    expect(planned.some((s) => s.date === '2026-11-22')).toBe(false);
+  });
+
+  it('ignores adjustments that name a session the pattern does not make', () => {
+    const planned = plan({
+      removed: [slot('2026-11-02')],
+      moved: [{ from: slot('2026-11-03'), to: slot('2026-11-04') }],
+    });
+    expect(planned).toEqual(plan({}));
+  });
+
+  it('is only the days added by hand when there is no pattern, oldest first', () => {
+    const planned = planSessions([], '2026-12-01', '2026-12-12', {
+      removed: [],
+      moved: [],
+      extras: [slot('2026-12-12'), slot('2026-12-01'), slot('2026-12-05')],
+    });
+    expect(planned.map((s) => s.date)).toEqual([
+      '2026-12-01',
+      '2026-12-05',
+      '2026-12-12',
+    ]);
+  });
+
+  it('checks the plan: overlap with a pattern session, outside the period, and an empty plan', () => {
+    const check = (adjustments: Partial<Adjustments>, hasPattern = true) =>
+      validatePlan(plan(adjustments), '2026-10-28', '2026-11-24', hasPattern);
+    expect(check({})).toBeNull();
+    expect(
+      check({ extras: [slot('2026-11-21', '16:00', '18:00')] }),
+    ).toBeNull();
+    expect(check({ extras: [slot('2026-11-08', '09:00', '11:00')] })).toBe(
+      'overlap_same_day',
+    );
+    expect(check({ extras: [slot('2026-12-05')] })).toBe('outside_period');
+    // Everything deleted is accepted next to a pattern, not without one.
+    expect(
+      check({
+        removed: [
+          slot('2026-11-01'),
+          slot('2026-11-08'),
+          slot('2026-11-15'),
+          slot('2026-11-22'),
+        ],
+      }),
+    ).toBeNull();
+    expect(validatePlan([], '2026-10-28', '2026-11-24', false)).toBe('none');
   });
 });
 

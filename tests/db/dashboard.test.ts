@@ -13,6 +13,7 @@ import { eachDate } from '@/lib/dashboard/dates';
 import { countByDate, type Rule } from '@/lib/dashboard/schedule';
 import {
   addSession,
+  addSessions,
   deleteSession,
   getSession,
   listGroupSessions,
@@ -815,6 +816,136 @@ describe.skipIf(!testDatabaseUrl)(
       });
     });
 
+    describe('"Ajouter une séance" with several rows', () => {
+      const row = (date: string, startTime = '14:00', endTime = '15:30') => ({
+        date,
+        startTime,
+        endTime,
+      });
+
+      it('adds all the rows in one step, as extra sessions of the group', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
+        const result = await addSessions(
+          pool,
+          teacher,
+          {
+            groupId: group,
+            sessions: [row('2026-09-09'), row('2026-09-10'), row('2026-09-12')],
+          },
+          NOW,
+        );
+        expect(result).toEqual({ ok: true, count: 3 });
+        const sessions = await listGroupSessions(pool, teacher, group);
+        expect(
+          sessions.filter((s) => s.origin === 'extra').map((s) => s.date),
+        ).toEqual(['2026-09-09', '2026-09-10', '2026-09-12']);
+      });
+
+      it('adds nothing when one row overlaps a session of the calendar, and says which row', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
+        const result = await addSessions(
+          pool,
+          teacher,
+          {
+            groupId: group,
+            sessions: [
+              row('2026-09-09'),
+              row('2026-09-14', '09:00', '11:00'), // Monday 08:00-10:00 is there
+            ],
+          },
+          NOW,
+        );
+        expect(result).toMatchObject({ ok: false, reason: 'conflict' });
+        if (result.ok || !result.conflicts) return;
+        expect(result.conflicts.map((c) => c.index)).toEqual([1]);
+        expect(result.conflicts[0].with.groupName).toBe('Groupe A');
+        expect(
+          (await listGroupSessions(pool, teacher, group)).filter(
+            (s) => s.origin === 'extra',
+          ),
+        ).toEqual([]);
+      });
+
+      it('refuses two rows that overlap each other', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
+        const result = await addSessions(
+          pool,
+          teacher,
+          {
+            groupId: group,
+            sessions: [
+              row('2026-09-09', '14:00', '16:00'),
+              row('2026-09-09', '15:00', '17:00'),
+            ],
+          },
+          NOW,
+        );
+        expect(result).toMatchObject({ ok: false, reason: 'conflict' });
+        if (result.ok || !result.conflicts) return;
+        expect(result.conflicts.map((c) => c.index)).toEqual([1]);
+        // Touching rows are fine.
+        expect(
+          await addSessions(
+            pool,
+            teacher,
+            {
+              groupId: group,
+              sessions: [
+                row('2026-09-09', '14:00', '15:00'),
+                row('2026-09-09', '15:00', '16:00'),
+              ],
+            },
+            NOW,
+          ),
+        ).toEqual({ ok: true, count: 2 });
+      });
+
+      it("refuses bad rows with their number, an empty list, and another teacher's group", async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
+        expect(
+          await addSessions(
+            pool,
+            teacher,
+            { groupId: group, sessions: [] },
+            NOW,
+          ),
+        ).toEqual({ ok: false, reason: 'empty' });
+        expect(
+          await addSessions(
+            pool,
+            teacher,
+            {
+              groupId: group,
+              sessions: [
+                row('2026-09-09'),
+                row('2026-09-10', '16:00', '15:00'),
+              ],
+            },
+            NOW,
+          ),
+        ).toEqual({ ok: false, reason: 'invalid', index: 1 });
+        expect(
+          await addSessions(
+            pool,
+            teacher,
+            {
+              groupId: group,
+              sessions: [row('2026-08-31'), row('2026-09-10')],
+            },
+            NOW,
+          ),
+        ).toEqual({ ok: false, reason: 'new_slot_in_past', index: 0 });
+        expect(
+          await addSessions(
+            pool,
+            other,
+            { groupId: group, sessions: [row('2026-09-09')] },
+            NOW,
+          ),
+        ).toEqual({ ok: false, reason: 'group_not_found' });
+      });
+    });
+
     describe('"Prochaines séances"', () => {
       it('lists the rest of today and tomorrow, not what is over, deleted or later', async () => {
         const group = await make(teacher, {
@@ -1237,14 +1368,187 @@ describe.skipIf(!testDatabaseUrl)(
             slot('2026-09-09', '11:00', '12:00'),
           ]),
         ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
-        // a weekly pattern next to the picked days
+        // nothing to remove or edit without a weekly pattern
         expect(
           await createGroup(pool, teacher, {
             ...picked([slot('2026-09-09')]),
-            rules: [rule(1, 1, '08:00', '10:00')],
+            removedSessions: [slot('2026-09-14')],
           }),
-        ).toMatchObject({ ok: false, reason: 'invalid_rules' });
+        ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
         expect(await listGroups(pool, teacher)).toEqual([]);
+      });
+
+      // ------------------------------------------- a weekly pattern with days adjusted by hand
+
+      describe('a weekly pattern adjusted day by day', () => {
+        // Sundays 8-10 from Wed 28 Oct to Tue 24 Nov 2026 are the 1st, 8th, 15th and 22nd.
+        const sundays = (): GroupInput => ({
+          name: 'Groupe dimanche',
+          startDate: '2026-10-28',
+          endDate: '2026-11-24',
+          rules: [rule(7, 1, '08:00', '10:00')],
+          pricingModel: 'per_session',
+          referencePriceMillimes: null,
+        });
+        const NOV = new Date('2026-10-28T08:00:00Z');
+        const originOf = async (groupId: string) =>
+          (await listGroupSessions(pool, teacher, groupId)).map((s) =>
+            `${s.date} ${s.startTime} ${s.origin} ${s.originalDate ?? ''}`.trim(),
+          );
+
+        it('adds a specific day next to the pattern (owner example: Saturday 21 November 16:00-18:00)', async () => {
+          const result = await createGroupAt(
+            pool,
+            teacher,
+            {
+              ...sundays(),
+              customSessions: [slot('2026-11-21', '16:00', '18:00')],
+            },
+            NOV,
+          );
+          expect(result).toMatchObject({ ok: true, sessionCount: 5 });
+          if (!result.ok) return;
+          expect(await originOf(result.groupId)).toEqual([
+            '2026-11-01 08:00 rule',
+            '2026-11-08 08:00 rule',
+            '2026-11-15 08:00 rule',
+            '2026-11-21 16:00 manual',
+            '2026-11-22 08:00 rule',
+          ]);
+          // The pattern itself still has only Sunday.
+          expect(
+            (await getGroup(pool, teacher, result.groupId))?.rules,
+          ).toHaveLength(1);
+        });
+
+        it('deletes one pattern session and edits another (date and time), keeping the others', async () => {
+          const result = await createGroupAt(
+            pool,
+            teacher,
+            {
+              ...sundays(),
+              removedSessions: [slot('2026-11-01')],
+              movedSessions: [
+                {
+                  from: slot('2026-11-22'),
+                  to: slot('2026-11-23', '14:00', '16:00'),
+                },
+              ],
+            },
+            NOV,
+          );
+          expect(result).toMatchObject({ ok: true, sessionCount: 3 });
+          if (!result.ok) return;
+          expect(await originOf(result.groupId)).toEqual([
+            '2026-11-08 08:00 rule',
+            '2026-11-15 08:00 rule',
+            '2026-11-23 14:00 moved 2026-11-22',
+          ]);
+        });
+
+        it('ignores an adjustment that names a session the pattern does not make', async () => {
+          const result = await createGroupAt(
+            pool,
+            teacher,
+            {
+              ...sundays(),
+              removedSessions: [slot('2026-11-02')],
+              movedSessions: [
+                { from: slot('2026-11-03'), to: slot('2026-11-04') },
+              ],
+            },
+            NOV,
+          );
+          expect(result).toMatchObject({ ok: true, sessionCount: 4 });
+        });
+
+        it('refuses a day added on top of a pattern session at the same time, and a fourth session in one day', async () => {
+          expect(
+            await createGroupAt(
+              pool,
+              teacher,
+              {
+                ...sundays(),
+                customSessions: [slot('2026-11-08', '09:00', '11:00')],
+              },
+              NOV,
+            ),
+          ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
+          expect(
+            await createGroupAt(
+              pool,
+              teacher,
+              {
+                ...sundays(),
+                customSessions: [
+                  slot('2026-11-08', '10:00', '11:00'),
+                  slot('2026-11-08', '11:00', '12:00'),
+                  slot('2026-11-08', '12:00', '13:00'),
+                ],
+              },
+              NOV,
+            ),
+          ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
+          // outside the period
+          expect(
+            await createGroupAt(
+              pool,
+              teacher,
+              { ...sundays(), customSessions: [slot('2026-12-05')] },
+              NOV,
+            ),
+          ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
+          expect(await listGroups(pool, teacher)).toEqual([]);
+        });
+
+        it('reports a conflict with another group for a specific day', async () => {
+          await make(teacher, mondays('2026-11-02', '2026-11-30'));
+          const result = await createGroupAt(
+            pool,
+            teacher,
+            {
+              ...sundays(),
+              customSessions: [slot('2026-11-09', '09:00', '11:00')],
+            },
+            NOV,
+          );
+          expect(result).toMatchObject({ ok: false, reason: 'conflicts' });
+        });
+
+        it('"Modifier calendrier" keeps the days added and the sessions edited by hand', async () => {
+          const created = await createGroupAt(
+            pool,
+            teacher,
+            {
+              ...sundays(),
+              customSessions: [slot('2026-11-21', '16:00', '18:00')],
+              movedSessions: [
+                {
+                  from: slot('2026-11-22'),
+                  to: slot('2026-11-23', '14:00', '16:00'),
+                },
+              ],
+            },
+            NOV,
+          );
+          if (!created.ok) throw new Error('not created');
+          const result = await changeCalendar(
+            pool,
+            teacher,
+            created.groupId,
+            {
+              effectiveDate: '2026-10-29',
+              endDate: '2026-11-24',
+              rules: [rule(7, 1, '08:00', '10:00')],
+              resetModified: false,
+            },
+            { now: NOV },
+          );
+          expect(result).toMatchObject({ ok: true });
+          const rows = await originOf(created.groupId);
+          expect(rows).toContain('2026-11-21 16:00 manual');
+          expect(rows).toContain('2026-11-23 14:00 moved 2026-11-22');
+        });
       });
 
       it("reports the conflicts with the teacher's other sessions", async () => {
@@ -1274,7 +1578,7 @@ describe.skipIf(!testDatabaseUrl)(
           expect(await dates(result.groupId)).toEqual(['2026-09-08']);
       });
 
-      it('"Modifier calendrier" keeps the picked sessions and adds a new pattern next to them', async () => {
+      it('"Modifier calendrier" gives no weekly pattern to a group whose days were picked', async () => {
         const created = await createGroup(
           pool,
           teacher,
@@ -1294,13 +1598,291 @@ describe.skipIf(!testDatabaseUrl)(
           },
           { now },
         );
-        expect(result).toMatchObject({ ok: true, removed: 0, created: 3 });
-        expect(await dates(created.groupId)).toEqual([
-          '2026-09-09',
+        expect(result).toEqual({ ok: false, reason: 'invalid_rules' });
+        expect(await dates(created.groupId)).toEqual(['2026-09-09']);
+      });
+
+      it('"Modifier calendrier" works day by day on such a group, and the period follows its sessions', async () => {
+        const created = await createGroup(
+          pool,
+          teacher,
+          picked([slot('2026-09-09'), slot('2026-09-16')]),
+        );
+        if (!created.ok) throw new Error('not created');
+        const now = new Date('2026-09-08T08:00:00Z');
+        const [first, second] = await listGroupSessions(
+          pool,
+          teacher,
+          created.groupId,
+        );
+        const base = {
+          effectiveDate: '2026-09-08',
+          endDate: '2026-09-30',
+          rules: [],
+          resetModified: false,
+        };
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          created.groupId,
+          {
+            ...base,
+            addedSessions: [slot('2026-10-12', '16:00', '18:00')],
+            deletedSessionIds: [first.id],
+            editedSessions: [
+              { id: second.id, to: slot('2026-09-17', '14:00', '15:00') },
+            ],
+          },
+          { now },
+        );
+        expect(result).toMatchObject({ ok: true });
+        const sessions = await listGroupSessions(
+          pool,
+          teacher,
+          created.groupId,
+        );
+        expect(
+          sessions.map((s) => `${s.date} ${s.startTime} ${s.origin}`),
+        ).toEqual(['2026-09-17 14:00 manual', '2026-10-12 16:00 manual']);
+        // Period = first to last session (a later day widens it, a deleted first day shrinks it).
+        const group = await getGroup(pool, teacher, created.groupId);
+        expect([group?.startDate, group?.endDate]).toEqual([
+          '2026-09-17',
+          '2026-10-12',
+        ]);
+      });
+    });
+
+    describe('"Modifier calendrier" day by day on a group with a weekly pattern', () => {
+      const now = new Date('2026-09-08T08:00:00Z'); // Tuesday 8 September, 10:00 in Tunis
+      const slot = (date: string, startTime = '08:00', endTime = '10:00') => ({
+        date,
+        startTime,
+        endTime,
+      });
+      const change = (extra: object = {}) => ({
+        effectiveDate: '2026-09-08',
+        endDate: '2026-09-28',
+        rules: [rule(1, 1, '08:00', '10:00')],
+        resetModified: false,
+        ...extra,
+      });
+      const idOf = async (group: string, date: string) =>
+        (await listGroupSessions(pool, teacher, group)).find(
+          (s) => s.date === date,
+        )!.id;
+      const rowsOf = async (group: string) =>
+        (await listGroupSessions(pool, teacher, group)).map(
+          (s) => `${s.date} ${s.startTime} ${s.origin}`,
+        );
+
+      it('deletes one Monday and the rebuilt pattern does not make it again', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({ deletedSessionIds: [await idOf(group, '2026-09-21')] }),
+          { now },
+        );
+        expect(result).toMatchObject({ ok: true });
+        expect(await dates(group)).toEqual([
+          '2026-09-07',
+          '2026-09-14',
+          '2026-09-28',
+        ]);
+      });
+
+      it('does not rebuild the pattern when only days are changed: a Monday deleted earlier stays deleted', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        await deleteSession(
+          pool,
+          teacher,
+          await idOf(group, '2026-09-21'),
+          now,
+        );
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({ addedSessions: [slot('2026-09-19', '16:00', '18:00')] }),
+          { now },
+        );
+        expect(result).toMatchObject({ ok: true, removed: 0, created: 0 });
+        expect(await dates(group)).toEqual([
+          '2026-09-07',
+          '2026-09-14',
+          '2026-09-19',
+          '2026-09-28',
+        ]);
+        // Changing the pattern itself (here its end date) does build it again, as before.
+        const rebuilt = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({ endDate: '2026-10-05' }),
+          { now },
+        );
+        expect(rebuilt).toMatchObject({ ok: true });
+        expect(await dates(group)).toContain('2026-09-21');
+      });
+
+      it('edits one Monday to another date and time; the pattern leaves that Monday alone', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({
+            editedSessions: [
+              {
+                id: await idOf(group, '2026-09-21'),
+                to: slot('2026-09-22', '14:00', '16:00'),
+              },
+            ],
+          }),
+          { now },
+        );
+        expect(result).toMatchObject({ ok: true });
+        expect(await rowsOf(group)).toEqual([
+          '2026-09-07 08:00 rule',
+          '2026-09-14 08:00 rule',
+          '2026-09-22 14:00 moved',
+          '2026-09-28 08:00 rule',
+        ]);
+      });
+
+      it('adds a specific day (a Saturday, not every Saturday), also outside the period, which then widens', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({
+            addedSessions: [
+              slot('2026-09-19', '16:00', '18:00'),
+              slot('2026-10-03', '16:00', '18:00'),
+            ],
+          }),
+          { now },
+        );
+        expect(result).toMatchObject({ ok: true });
+        expect(await rowsOf(group)).toEqual([
+          '2026-09-07 08:00 rule',
+          '2026-09-14 08:00 rule',
+          '2026-09-19 16:00 manual',
+          '2026-09-21 08:00 rule',
+          '2026-09-28 08:00 rule',
+          '2026-10-03 16:00 manual',
+        ]);
+        expect((await getGroup(pool, teacher, group))?.endDate).toBe(
+          '2026-10-03',
+        );
+      });
+
+      it('shows what it would do on a dry run and saves nothing', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({
+            addedSessions: [slot('2026-09-19', '16:00', '18:00')],
+            deletedSessionIds: [await idOf(group, '2026-09-21')],
+          }),
+          { now, dryRun: true },
+        );
+        expect(result).toMatchObject({ ok: true });
+        expect(await dates(group)).toEqual([
+          '2026-09-07',
           '2026-09-14',
           '2026-09-21',
           '2026-09-28',
         ]);
+      });
+
+      it('refuses an overlap with another group or between new sessions, and changes nothing', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        await make(teacher, {
+          ...mondays('2026-09-07', '2026-09-28'),
+          name: 'Groupe B',
+          rules: [rule(3, 1, '14:00', '16:00')],
+        });
+        const clash = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({ addedSessions: [slot('2026-09-16', '15:00', '17:00')] }),
+          { now },
+        );
+        expect(clash).toMatchObject({ ok: false, reason: 'conflicts' });
+        const twice = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          change({
+            addedSessions: [
+              slot('2026-09-19', '16:00', '18:00'),
+              slot('2026-09-19', '17:00', '19:00'),
+            ],
+          }),
+          { now },
+        );
+        expect(twice).toMatchObject({ ok: false, reason: 'conflicts' });
+        expect(await dates(group)).toEqual([
+          '2026-09-07',
+          '2026-09-14',
+          '2026-09-21',
+          '2026-09-28',
+        ]);
+      });
+
+      it('refuses a past session, a session of another group or teacher, and a new slot in the past', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        const otherGroup = await make(teacher, {
+          ...mondays('2026-09-07', '2026-09-28'),
+          name: 'Groupe B',
+          rules: [rule(3, 1, '14:00', '16:00')],
+        });
+        expect(
+          await changeCalendar(
+            pool,
+            teacher,
+            group,
+            change({ deletedSessionIds: [await idOf(group, '2026-09-07')] }),
+            { now },
+          ),
+        ).toEqual({ ok: false, reason: 'past' });
+        expect(
+          await changeCalendar(
+            pool,
+            teacher,
+            group,
+            change({
+              deletedSessionIds: [await idOf(otherGroup, '2026-09-16')],
+            }),
+            { now },
+          ),
+        ).toEqual({ ok: false, reason: 'session_not_found' });
+        expect(
+          await changeCalendar(
+            pool,
+            other,
+            group,
+            change({ deletedSessionIds: [await idOf(group, '2026-09-21')] }),
+            { now },
+          ),
+        ).toEqual({ ok: false, reason: 'not_found' });
+        expect(
+          await changeCalendar(
+            pool,
+            teacher,
+            group,
+            change({ addedSessions: [slot('2026-09-07', '16:00', '18:00')] }),
+            { now },
+          ),
+        ).toEqual({ ok: false, reason: 'invalid_sessions' });
+        expect(await dates(group)).toHaveLength(4);
       });
     });
 

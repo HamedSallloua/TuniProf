@@ -32,9 +32,12 @@ export default async function ChangeCalendarPage({
   return (
     <ChangeCalendarForm
       sessions={sessions.map((s) => ({
+        id: s.id,
         date: s.date,
         startTime: s.startTime,
         endTime: s.endTime,
+        origin: s.origin,
+        originalDate: s.originalDate,
       }))}
       group={{
         id: group.id,

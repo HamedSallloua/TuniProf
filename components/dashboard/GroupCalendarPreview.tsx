@@ -15,6 +15,8 @@ export function GroupCalendarPreview({
   today,
   added = [],
   removed = [],
+  conflictDays = [],
+  onDayClick,
   labels,
 }: {
   /** "2026-09", "2026-10", ... */
@@ -26,6 +28,10 @@ export function GroupCalendarPreview({
   today: string;
   added?: string[];
   removed?: string[];
+  /** Days drawn in red: a session of this group overlaps another group's. */
+  conflictDays?: string[];
+  /** When given, every day is a button (a client form passes it to open the day). */
+  onDayClick?: (date: string) => void;
   labels: {
     sessions: (count: number) => string;
     legendSessions: string;
@@ -35,6 +41,7 @@ export function GroupCalendarPreview({
 }) {
   const addedSet = new Set(added);
   const removedSet = new Set(removed);
+  const conflictSet = new Set(conflictDays);
   const weekLabels = weekdayNames(locale, 'narrow');
 
   return (
@@ -85,10 +92,21 @@ export function GroupCalendarPreview({
                 const count = counts[date] ?? 0;
                 const isAdded = addedSet.has(date);
                 const isRemoved = removedSet.has(date) && count === 0;
+                const isConflict = conflictSet.has(date);
+                const Wrapper = onDayClick ? 'button' : 'span';
                 return (
-                  <span
+                  <Wrapper
+                    {...(onDayClick
+                      ? {
+                          type: 'button' as const,
+                          onClick: () => onDayClick(date),
+                        }
+                      : {})}
                     aria-current={date === today ? 'date' : undefined}
-                    className="flex min-h-11 w-9 flex-col items-center gap-0.5 py-0.5"
+                    className={
+                      'flex min-h-11 w-9 flex-col items-center gap-0.5 py-0.5' +
+                      (onDayClick ? ' rounded-md hover:bg-secondary' : '')
+                    }
                   >
                     <span className="sr-only">
                       {formatDay(date, locale, { dateStyle: 'full' })},{' '}
@@ -105,13 +123,15 @@ export function GroupCalendarPreview({
                             : date === today
                               ? 'font-semibold text-primary ring-1 ring-primary '
                               : '') +
-                        (isAdded ? 'outline outline-2 outline-offset-1' : '')
+                        (isAdded || isConflict
+                          ? 'outline outline-2 outline-offset-1'
+                          : '')
                       }
                       style={
                         count > 0
                           ? {
-                              backgroundColor: color,
-                              outlineColor: color,
+                              backgroundColor: isConflict ? '#b91c1c' : color,
+                              outlineColor: isConflict ? '#b91c1c' : color,
                             }
                           : undefined
                       }
@@ -124,7 +144,7 @@ export function GroupCalendarPreview({
                     >
                       {count > 1 ? count : ''}
                     </span>
-                  </span>
+                  </Wrapper>
                 );
               }}
             />

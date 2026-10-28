@@ -2,18 +2,39 @@
 
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
-import { addSessionAction } from '@/app/[locale]/(dashboard)/dashboard-actions';
+import { addSessionsAction } from '@/app/[locale]/(dashboard)/dashboard-actions';
 import {
   buttonClass,
   inputClass,
   secondaryButtonClass,
 } from '@/components/auth/styles';
 import { Link, useRouter } from '@/i18n/navigation';
-import { isValidDate, isValidTime, timeToMinutes } from '@/lib/dashboard/dates';
+import {
+  addDays,
+  isValidDate,
+  isValidTime,
+  timeToMinutes,
+} from '@/lib/dashboard/dates';
+import { MAX_ADDED_SESSIONS } from '@/lib/dashboard/schedule';
 import { ConflictList, type ConflictLine } from './ConflictList';
 import { conflictLinesFor } from './MoveSessionForm';
 
-/** "Ajouter une séance" (spec 5.3): one extra session of one group, on a date and a time. */
+type Row = { key: number; date: string; startTime: string; endTime: string };
+
+function rowIsValid(row: Row): boolean {
+  return (
+    isValidDate(row.date) &&
+    isValidTime(row.startTime) &&
+    isValidTime(row.endTime) &&
+    timeToMinutes(row.endTime) > timeToMinutes(row.startTime)
+  );
+}
+
+/**
+ * "Ajouter une séance" (spec 5.3): extra sessions of one group. Each row is one day with its
+ * times; "Ajouter un autre jour" adds a row, and "Ajouter" saves all the rows in one step (all
+ * or nothing, an overlap is refused with the row it belongs to).
+ */
 export function AddSessionForm({
   groups,
   defaultDate,
@@ -30,30 +51,56 @@ export function AddSessionForm({
   const router = useRouter();
 
   const [groupId, setGroupId] = useState(groups[0]?.id ?? '');
-  const [slot, setSlot] = useState({
-    date: defaultDate,
-    startTime: '08:00',
-    endTime: '10:00',
-  });
+  const [rows, setRows] = useState<Row[]>([
+    { key: 1, date: defaultDate, startTime: '08:00', endTime: '10:00' },
+  ]);
+  const [nextKey, setNextKey] = useState(2);
   const [error, setError] = useState<string | null>(null);
+  const [errorRow, setErrorRow] = useState<number | null>(null);
   const [lines, setLines] = useState<ConflictLine[]>([]);
+  const [conflictRows, setConflictRows] = useState<Set<number>>(new Set());
   const [pending, startTransition] = useTransition();
 
-  const valid =
-    groupId !== '' &&
-    isValidDate(slot.date) &&
-    isValidTime(slot.startTime) &&
-    isValidTime(slot.endTime) &&
-    timeToMinutes(slot.endTime) > timeToMinutes(slot.startTime);
+  const valid = groupId !== '' && rows.every(rowIsValid);
+
+  function patchRow(key: number, patch: Partial<Row>) {
+    setRows((current) =>
+      current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    );
+  }
+
+  function addRow() {
+    // The new row starts the day after the last one, with the same hours.
+    const last = rows[rows.length - 1];
+    const date = isValidDate(last.date) ? addDays(last.date, 1) : today;
+    setRows((current) => [
+      ...current,
+      { key: nextKey, date, startTime: last.startTime, endTime: last.endTime },
+    ]);
+    setNextKey(nextKey + 1);
+  }
+
+  function removeRow(key: number) {
+    setRows((current) => current.filter((row) => row.key !== key));
+  }
 
   function save() {
     setError(null);
+    setErrorRow(null);
     setLines([]);
+    setConflictRows(new Set());
     startTransition(async () => {
-      const result = await addSessionAction({ groupId, ...slot });
+      const result = await addSessionsAction({
+        groupId,
+        sessions: rows.map(({ date, startTime, endTime }) => ({
+          date,
+          startTime,
+          endTime,
+        })),
+      });
       if (result.ok) {
         const url = new URL(returnTo, 'http://local');
-        url.searchParams.set('done', 'added');
+        url.searchParams.set('done', rows.length > 1 ? 'added_many' : 'added');
         router.push(`${url.pathname}${url.search}`);
         router.refresh();
         return;
@@ -62,8 +109,17 @@ export function AddSessionForm({
         result.reason === 'conflict' &&
         'conflicts' in result &&
         result.conflicts?.length
-      )
-        setLines(conflictLinesFor(slot, result.conflicts));
+      ) {
+        const found = result.conflicts;
+        setLines(
+          found.flatMap(({ index, with: other }) =>
+            rows[index] ? conflictLinesFor(rows[index], [other]) : [],
+          ),
+        );
+        setConflictRows(new Set(found.map((c) => rows[c.index]?.key)));
+      }
+      if ('index' in result && typeof result.index === 'number')
+        setErrorRow(rows[result.index]?.key ?? null);
       setError(result.reason);
     });
   }
@@ -98,74 +154,125 @@ export function AddSessionForm({
       )}
       <ConflictList lines={lines} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1 sm:col-span-2">
-          <label htmlFor="add-group" className="block font-medium">
-            {t('group')}
-          </label>
-          <select
-            id="add-group"
-            value={groupId}
-            onChange={(e) => setGroupId(e.target.value)}
-            className={inputClass}
-          >
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="add-date" className="block font-medium">
-            {t('date')}
-          </label>
-          <input
-            id="add-date"
-            type="date"
-            min={today}
-            value={slot.date}
-            onChange={(e) =>
-              setSlot((current) => ({ ...current, date: e.target.value }))
-            }
-            className={inputClass}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label htmlFor="add-start" className="block font-medium">
-              {t('start')}
-            </label>
-            <input
-              id="add-start"
-              type="time"
-              dir="ltr"
-              value={slot.startTime}
-              onChange={(e) =>
-                setSlot((current) => ({
-                  ...current,
-                  startTime: e.target.value,
-                }))
+      <div className="space-y-1">
+        <label htmlFor="add-group" className="block font-medium">
+          {t('group')}
+        </label>
+        <select
+          id="add-group"
+          value={groupId}
+          onChange={(e) => setGroupId(e.target.value)}
+          className={inputClass}
+        >
+          {groups.map((group) => (
+            <option key={group.id} value={group.id}>
+              {group.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <ul className="space-y-3">
+        {rows.map((row, index) => {
+          const flagged = conflictRows.has(row.key) || errorRow === row.key;
+          return (
+            <li
+              key={row.key}
+              className={
+                'rounded-card border bg-surface p-3 ' +
+                (flagged ? 'border-accent' : 'border-border')
               }
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="add-end" className="block font-medium">
-              {t('end')}
-            </label>
-            <input
-              id="add-end"
-              type="time"
-              dir="ltr"
-              value={slot.endTime}
-              onChange={(e) =>
-                setSlot((current) => ({ ...current, endTime: e.target.value }))
-              }
-              className={inputClass}
-            />
-          </div>
-        </div>
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="font-medium">
+                  {t('rowTitle', { n: index + 1 })}
+                </h2>
+                {rows.length > 1 && (
+                  <button
+                    type="button"
+                    className={secondaryButtonClass}
+                    onClick={() => removeRow(row.key)}
+                    disabled={pending}
+                  >
+                    {t('removeRow')}
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <label
+                    htmlFor={`add-date-${row.key}`}
+                    className="block font-medium"
+                  >
+                    {t('date')}
+                  </label>
+                  <input
+                    id={`add-date-${row.key}`}
+                    type="date"
+                    min={today}
+                    value={row.date}
+                    onChange={(e) =>
+                      patchRow(row.key, { date: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    htmlFor={`add-start-${row.key}`}
+                    className="block font-medium"
+                  >
+                    {t('start')}
+                  </label>
+                  <input
+                    id={`add-start-${row.key}`}
+                    type="time"
+                    dir="ltr"
+                    value={row.startTime}
+                    onChange={(e) =>
+                      patchRow(row.key, { startTime: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    htmlFor={`add-end-${row.key}`}
+                    className="block font-medium"
+                  >
+                    {t('end')}
+                  </label>
+                  <input
+                    id={`add-end-${row.key}`}
+                    type="time"
+                    dir="ltr"
+                    value={row.endTime}
+                    onChange={(e) =>
+                      patchRow(row.key, { endTime: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              {!rowIsValid(row) && (
+                <p role="alert" className="mt-2 text-sm text-accent">
+                  {td('sessionErrors.invalid')}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div>
+        <button
+          type="button"
+          className={secondaryButtonClass}
+          onClick={addRow}
+          disabled={pending || rows.length >= MAX_ADDED_SESSIONS}
+        >
+          {t('addRow')}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -175,7 +282,9 @@ export function AddSessionForm({
           disabled={!valid || pending}
           onClick={save}
         >
-          {t('confirm')}
+          {rows.length > 1
+            ? t('confirmMany', { count: rows.length })
+            : t('confirm')}
         </button>
         <Link href={returnTo} className={secondaryButtonClass}>
           {t('back')}

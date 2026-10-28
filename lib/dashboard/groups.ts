@@ -1,18 +1,19 @@
 import type { Pool } from 'pg';
 import type { Queryable } from '@/lib/db/transaction';
 import { pickColor } from './colors';
-import { tunisNow } from './dates';
 import {
   findConflicts,
-  generateSessions,
+  MAX_CUSTOM_SESSIONS,
+  planSessions,
   validateName,
   validatePeriod,
-  validateCustomSessions,
+  validatePlan,
   validateRules,
   withoutEnded,
   type Conflict,
   type Rule,
   type SessionDraft,
+  type SlotMove,
 } from './schedule';
 import {
   EXCLUSION_VIOLATION,
@@ -119,10 +120,14 @@ export type GroupInput = {
   /** The weekly pattern; empty when the days were picked by hand (`customSessions`). */
   rules: Rule[];
   /**
-   * The days picked by hand in a calendar, each with its times. When this is given the group
-   * has no weekly pattern (`rules` is empty).
+   * Days added by hand in a calendar, each with its times (origin `manual`). Alone (no weekly
+   * pattern) they are the whole group; next to a pattern they are extra specific days.
    */
   customSessions?: SessionDraft[];
+  /** Sessions the pattern would make that the teacher deleted in the wizard (by date and times). */
+  removedSessions?: SessionDraft[];
+  /** Sessions the pattern would make that the teacher edited in the wizard (origin `moved`). */
+  movedSessions?: SlotMove[];
   pricingModel: PricingModel;
   /** Millimes, or null when the teacher gave no reference price. */
   referencePriceMillimes: number | null;
@@ -166,21 +171,33 @@ export async function createGroup(
   if (!validateName(name)) return { ok: false, reason: 'invalid_name' };
   if (validatePeriod(input.startDate, input.endDate))
     return { ok: false, reason: 'invalid_period' };
-  const custom = input.customSessions;
-  if (custom) {
-    // Days picked by hand: no weekly pattern at all.
-    if (input.rules.length > 0) return { ok: false, reason: 'invalid_rules' };
-    if (validateCustomSessions(custom, input.startDate, input.endDate))
+  const custom = input.customSessions ?? [];
+  const removed = input.removedSessions ?? [];
+  const moved = input.movedSessions ?? [];
+  const hasPattern = input.rules.length > 0;
+  if (hasPattern) {
+    if (!validateRules(input.rules).ok)
+      return { ok: false, reason: 'invalid_rules' };
+  } else {
+    // No weekly pattern: the group is only its hand-picked days, and there is nothing to
+    // remove or edit.
+    if (!input.customSessions) return { ok: false, reason: 'invalid_rules' };
+    if (removed.length > 0 || moved.length > 0)
       return { ok: false, reason: 'invalid_sessions' };
-  } else if (!validateRules(input.rules).ok)
-    return { ok: false, reason: 'invalid_rules' };
+  }
+  if (custom.length > MAX_CUSTOM_SESSIONS)
+    return { ok: false, reason: 'invalid_sessions' };
   if (!validPrice(input.referencePriceMillimes))
     return { ok: false, reason: 'invalid_price' };
 
-  const drafts = withoutEnded(
-    custom ?? generateSessions(input.rules, input.startDate, input.endDate),
-    now,
-  );
+  const planned = planSessions(input.rules, input.startDate, input.endDate, {
+    removed,
+    moved,
+    extras: custom,
+  });
+  if (validatePlan(planned, input.startDate, input.endDate, hasPattern))
+    return { ok: false, reason: 'invalid_sessions' };
+  const drafts = withoutEnded(planned, now);
 
   try {
     return await withTeacherLock(pool, teacherId, async (client) => {
@@ -213,13 +230,7 @@ export async function createGroup(
         ],
       );
       await insertRules(client, rows[0].id, input.rules);
-      await insertSessions(
-        client,
-        teacherId,
-        rows[0].id,
-        drafts,
-        custom ? 'manual' : 'rule',
-      );
+      await insertSessions(client, teacherId, rows[0].id, drafts);
       return {
         ok: true,
         groupId: rows[0].id,
@@ -268,181 +279,9 @@ export async function deleteGroup(
   });
 }
 
-// ------------------------------------------------------------------ "Modifier calendrier"
-
-export type CalendarChangeInput = {
-  /** Changes apply from this date on; sessions before it are never touched. */
-  effectiveDate: string;
-  endDate: string;
-  rules: Rule[];
-  /** "Réinitialiser aussi les séances modifiées": moved sessions are rebuilt too. */
-  resetModified: boolean;
-};
-
-export type CalendarChangeResult =
-  | {
-      ok: true;
-      removed: number;
-      created: number;
-      /** What was removed and what was created, so the screen can draw the result. */
-      removedSessions: SessionDraft[];
-      createdSessions: SessionDraft[];
-    }
-  | {
-      ok: false;
-      reason:
-        | 'not_found'
-        | 'invalid_date'
-        | 'invalid_period'
-        | 'invalid_rules'
-        | 'conflicts';
-      conflicts?: Conflict[];
-    };
-
-/**
- * Rebuilds the FUTURE of a group's calendar from an effective date (spec 5.3). Past sessions
- * and extra sessions are never touched; sessions that were moved one by one are kept unless
- * `resetModified` is true. A session deleted one by one is simply gone, so the new pattern
- * creates it again. With `dryRun` nothing is changed: it only says what
- * would happen and which conflicts would block it (the screen shows this before saving).
- */
-export async function changeCalendar(
-  pool: Pool,
-  teacherId: string,
-  groupId: string,
-  input: CalendarChangeInput,
-  options: { now?: Date; dryRun?: boolean } = {},
-): Promise<CalendarChangeResult> {
-  const now = options.now ?? new Date();
-  const { date: today, time: nowTime } = tunisNow(now);
-  if (input.effectiveDate < today) return { ok: false, reason: 'invalid_date' };
-  if (!validateRules(input.rules).ok)
-    return { ok: false, reason: 'invalid_rules' };
-
-  const finish = async <T>(
-    client: import('pg').PoolClient,
-    result: T,
-  ): Promise<T> => {
-    if (options.dryRun || (result as { ok: boolean }).ok === false)
-      await client.query('ROLLBACK');
-    return result;
-  };
-
-  try {
-    return await withTeacherLockNoCommit(pool, teacherId, async (client) => {
-      const { rows } = await client.query<{ start_date: string }>(
-        `SELECT start_date::text AS start_date FROM groups
-          WHERE id = $1 AND teacher_id = $2 FOR UPDATE`,
-        [groupId, teacherId],
-      );
-      if (!rows[0])
-        return finish(client, { ok: false, reason: 'not_found' } as const);
-      if (validatePeriod(rows[0].start_date, input.endDate))
-        return finish(client, { ok: false, reason: 'invalid_period' } as const);
-
-      // 1. What disappears: the future sessions made by the old pattern, and (on request) the
-      //    ones the teacher had moved one by one. Extra and hand-picked sessions always stay.
-      const removable = input.resetModified
-        ? `(origin = 'rule' OR origin = 'moved')`
-        : `origin = 'rule'`;
-      //    A session of today that is already over is history: it stays.
-      const removed = await client.query<{
-        date: string;
-        start_time: string;
-        end_time: string;
-      }>(
-        `DELETE FROM sessions
-          WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND ${removable}
-            AND NOT (date = $4::date AND end_time <= $5::time)
-      RETURNING date::text AS date, to_char(start_time, 'HH24:MI') AS start_time,
-                to_char(end_time, 'HH24:MI') AS end_time`,
-        [groupId, teacherId, input.effectiveDate, today, nowTime],
-      );
-
-      // 2. What is kept must not be generated twice: the date a session was moved away from
-      //    stays free.
-      const kept = await client.query<{ original_date: string }>(
-        `SELECT original_date::text AS original_date FROM sessions
-          WHERE group_id = $1 AND teacher_id = $2 AND origin = 'moved'
-            AND original_date >= $3::date`,
-        [groupId, teacherId, input.effectiveDate],
-      );
-      const movedAway = new Set(kept.rows.map((row) => row.original_date));
-      const drafts = withoutEnded(
-        generateSessions(
-          input.rules,
-          rows[0].start_date,
-          input.endDate,
-          input.effectiveDate,
-        ),
-        now,
-      ).filter((draft) => !movedAway.has(draft.date));
-
-      // 3. Conflicts with the teacher's other sessions (the removed ones are already gone).
-      const existing = await loadScheduledSessions(
-        client,
-        teacherId,
-        input.effectiveDate,
-        input.endDate,
-      );
-      const conflicts = findConflicts(drafts, existing);
-      if (conflicts.length > 0)
-        return finish(client, {
-          ok: false,
-          reason: 'conflicts',
-          conflicts,
-        } as const);
-
-      // 4. Write the new pattern and the new sessions.
-      await client.query('DELETE FROM schedule_rules WHERE group_id = $1', [
-        groupId,
-      ]);
-      await insertRules(client, groupId, input.rules);
-      await client.query(
-        'UPDATE groups SET end_date = $3 WHERE id = $1 AND teacher_id = $2',
-        [groupId, teacherId, input.endDate],
-      );
-      await insertSessions(client, teacherId, groupId, drafts);
-
-      const result = {
-        ok: true,
-        removed: removed.rowCount ?? 0,
-        created: drafts.length,
-        removedSessions: removed.rows.map((row) => ({
-          date: row.date,
-          startTime: row.start_time,
-          endTime: row.end_time,
-        })),
-        createdSessions: drafts,
-      } as const;
-      if (options.dryRun) await client.query('ROLLBACK');
-      else await client.query('COMMIT');
-      return result;
-    });
-  } catch (error) {
-    if ((error as { code?: string }).code === EXCLUSION_VIOLATION)
-      return { ok: false, reason: 'conflicts', conflicts: [] };
-    throw error;
-  }
-}
-
-/** Like withTeacherLock, but the caller decides when to COMMIT or ROLLBACK (for dry runs). */
-async function withTeacherLockNoCommit<T>(
-  pool: Pool,
-  teacherId: string,
-  work: (client: import('pg').PoolClient) => Promise<T>,
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
-      `dashboard:${teacherId}`,
-    ]);
-    return await work(client);
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
-}
+// "Modifier calendrier" lives in its own file (it grew with the day-by-day changes).
+export {
+  changeCalendar,
+  type CalendarChangeInput,
+  type CalendarChangeResult,
+} from './calendar-change';
