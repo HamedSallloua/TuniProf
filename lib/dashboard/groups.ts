@@ -5,13 +5,14 @@ import { tunisNow } from './dates';
 import {
   findConflicts,
   generateSessions,
-  overlaps,
   validateName,
   validatePeriod,
+  validateCustomSessions,
   validateRules,
   withoutEnded,
   type Conflict,
   type Rule,
+  type SessionDraft,
 } from './schedule';
 import {
   EXCLUSION_VIOLATION,
@@ -115,7 +116,13 @@ export type GroupInput = {
   name: string;
   startDate: string;
   endDate: string;
+  /** The weekly pattern; empty when the days were picked by hand (`customSessions`). */
   rules: Rule[];
+  /**
+   * The days picked by hand in a calendar, each with its times. When this is given the group
+   * has no weekly pattern (`rules` is empty).
+   */
+  customSessions?: SessionDraft[];
   pricingModel: PricingModel;
   /** Millimes, or null when the teacher gave no reference price. */
   referencePriceMillimes: number | null;
@@ -130,6 +137,7 @@ export type CreateGroupResult =
         | 'name_taken'
         | 'invalid_period'
         | 'invalid_rules'
+        | 'invalid_sessions'
         | 'invalid_price'
         | 'conflicts';
       conflicts?: Conflict[];
@@ -158,13 +166,19 @@ export async function createGroup(
   if (!validateName(name)) return { ok: false, reason: 'invalid_name' };
   if (validatePeriod(input.startDate, input.endDate))
     return { ok: false, reason: 'invalid_period' };
-  if (!validateRules(input.rules).ok)
+  const custom = input.customSessions;
+  if (custom) {
+    // Days picked by hand: no weekly pattern at all.
+    if (input.rules.length > 0) return { ok: false, reason: 'invalid_rules' };
+    if (validateCustomSessions(custom, input.startDate, input.endDate))
+      return { ok: false, reason: 'invalid_sessions' };
+  } else if (!validateRules(input.rules).ok)
     return { ok: false, reason: 'invalid_rules' };
   if (!validPrice(input.referencePriceMillimes))
     return { ok: false, reason: 'invalid_price' };
 
   const drafts = withoutEnded(
-    generateSessions(input.rules, input.startDate, input.endDate),
+    custom ?? generateSessions(input.rules, input.startDate, input.endDate),
     now,
   );
 
@@ -199,7 +213,13 @@ export async function createGroup(
         ],
       );
       await insertRules(client, rows[0].id, input.rules);
-      await insertSessions(client, teacherId, rows[0].id, drafts);
+      await insertSessions(
+        client,
+        teacherId,
+        rows[0].id,
+        drafts,
+        custom ? 'manual' : 'rule',
+      );
       return {
         ok: true,
         groupId: rows[0].id,
@@ -255,12 +275,19 @@ export type CalendarChangeInput = {
   effectiveDate: string;
   endDate: string;
   rules: Rule[];
-  /** "Réinitialiser aussi les séances modifiées": moved and cancelled sessions are rebuilt too. */
+  /** "Réinitialiser aussi les séances modifiées": moved sessions are rebuilt too. */
   resetModified: boolean;
 };
 
 export type CalendarChangeResult =
-  | { ok: true; removed: number; created: number }
+  | {
+      ok: true;
+      removed: number;
+      created: number;
+      /** What was removed and what was created, so the screen can draw the result. */
+      removedSessions: SessionDraft[];
+      createdSessions: SessionDraft[];
+    }
   | {
       ok: false;
       reason:
@@ -274,8 +301,9 @@ export type CalendarChangeResult =
 
 /**
  * Rebuilds the FUTURE of a group's calendar from an effective date (spec 5.3). Past sessions
- * and extra sessions are never touched; sessions that were moved or cancelled one by one are
- * kept unless `resetModified` is true. With `dryRun` nothing is changed: it only says what
+ * and extra sessions are never touched; sessions that were moved one by one are kept unless
+ * `resetModified` is true. A session deleted one by one is simply gone, so the new pattern
+ * creates it again. With `dryRun` nothing is changed: it only says what
  * would happen and which conflicts would block it (the screen shows this before saving).
  */
 export async function changeCalendar(
@@ -313,42 +341,33 @@ export async function changeCalendar(
         return finish(client, { ok: false, reason: 'invalid_period' } as const);
 
       // 1. What disappears: the future sessions made by the old pattern, and (on request) the
-      //    ones the teacher had moved or cancelled one by one. Extra sessions always stay.
+      //    ones the teacher had moved one by one. Extra and hand-picked sessions always stay.
       const removable = input.resetModified
         ? `(origin = 'rule' OR origin = 'moved')`
-        : `(origin = 'rule' AND status = 'scheduled')`;
+        : `origin = 'rule'`;
       //    A session of today that is already over is history: it stays.
-      const removed = await client.query(
-        `DELETE FROM sessions
-          WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND ${removable}
-            AND NOT (date = $4::date AND end_time <= $5::time)`,
-        [groupId, teacherId, input.effectiveDate, today, nowTime],
-      );
-
-      // 2. What is kept must not be generated twice: a session cancelled one by one stays
-      //    cancelled, and the date a session was moved away from stays free.
-      const kept = await client.query<{
+      const removed = await client.query<{
         date: string;
         start_time: string;
         end_time: string;
-        origin: string;
-        original_date: string | null;
       }>(
-        `SELECT date::text AS date, to_char(start_time, 'HH24:MI') AS start_time,
-                to_char(end_time, 'HH24:MI') AS end_time, origin, original_date::text AS original_date
-           FROM sessions
-          WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date
-             OR (group_id = $1 AND teacher_id = $2 AND origin = 'moved' AND original_date >= $3::date)`,
+        `DELETE FROM sessions
+          WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND ${removable}
+            AND NOT (date = $4::date AND end_time <= $5::time)
+      RETURNING date::text AS date, to_char(start_time, 'HH24:MI') AS start_time,
+                to_char(end_time, 'HH24:MI') AS end_time`,
+        [groupId, teacherId, input.effectiveDate, today, nowTime],
+      );
+
+      // 2. What is kept must not be generated twice: the date a session was moved away from
+      //    stays free.
+      const kept = await client.query<{ original_date: string }>(
+        `SELECT original_date::text AS original_date FROM sessions
+          WHERE group_id = $1 AND teacher_id = $2 AND origin = 'moved'
+            AND original_date >= $3::date`,
         [groupId, teacherId, input.effectiveDate],
       );
-      // A cancelled session keeps its date free for any new session that overlaps it, even if
-      // the new pattern has other times; a moved session keeps free the date it left.
-      const cancelledHere = kept.rows.filter((row) => row.origin === 'rule');
-      const movedAway = new Set(
-        kept.rows
-          .filter((row) => row.origin === 'moved' && row.original_date)
-          .map((row) => row.original_date as string),
-      );
+      const movedAway = new Set(kept.rows.map((row) => row.original_date));
       const drafts = withoutEnded(
         generateSessions(
           input.rules,
@@ -357,18 +376,7 @@ export async function changeCalendar(
           input.effectiveDate,
         ),
         now,
-      ).filter(
-        (draft) =>
-          !movedAway.has(draft.date) &&
-          !cancelledHere.some(
-            (row) =>
-              row.date === draft.date &&
-              overlaps(draft, {
-                startTime: row.start_time,
-                endTime: row.end_time,
-              }),
-          ),
-      );
+      ).filter((draft) => !movedAway.has(draft.date));
 
       // 3. Conflicts with the teacher's other sessions (the removed ones are already gone).
       const existing = await loadScheduledSessions(
@@ -400,6 +408,12 @@ export async function changeCalendar(
         ok: true,
         removed: removed.rowCount ?? 0,
         created: drafts.length,
+        removedSessions: removed.rows.map((row) => ({
+          date: row.date,
+          startTime: row.start_time,
+          endTime: row.end_time,
+        })),
+        createdSessions: drafts,
       } as const;
       if (options.dryRun) await client.query('ROLLBACK');
       else await client.query('COMMIT');

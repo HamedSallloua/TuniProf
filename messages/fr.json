@@ -965,15 +965,13 @@
       "line": "{day} {time} chevauche {group} {existing}"
     },
     "flash": {
-      "cancelled": "Séance supprimée. Vous pouvez la restaurer.",
-      "restored": "Séance restaurée.",
+      "deleted": "Séance supprimée définitivement.",
       "moved": "Séance déplacée.",
       "added": "Séance ajoutée."
     },
     "sessionErrors": {
       "not_found": "Cette séance n'existe plus.",
       "past": "Cette séance est passée : elle ne peut plus être modifiée.",
-      "not_scheduled": "Cette séance n'est pas dans l'état attendu (déjà supprimée ou restaurée).",
       "invalid": "Date ou heures invalides : la fin doit être après le début.",
       "unchanged": "Rien n'a changé.",
       "new_slot_in_past": "La nouvelle date est déjà passée.",
@@ -1031,7 +1029,6 @@
       "nameError": "Le nom doit contenir entre 2 et 50 caractères.",
       "startLabel": "Début",
       "endLabel": "Fin",
-      "schoolYear": "Année scolaire en cours",
       "periodErrors": {
         "invalid_date": "Choisissez une date de début et une date de fin.",
         "end_before_start": "La fin doit être le même jour ou après le début.",
@@ -1080,7 +1077,8 @@
         "period": "Période",
         "pattern": "Semaine type",
         "sessions": "Séances",
-        "sessionCount": "{count, plural, one {# séance sera créée} other {# séances seront créées}}"
+        "sessionCount": "{count, plural, one {# séance sera créée} other {# séances seront créées}}",
+        "pickedDays": "{count, plural, one {# jour choisi dans le calendrier} other {# jours choisis dans le calendrier}}"
       },
       "next": "Suivant",
       "back": "Retour",
@@ -1096,7 +1094,8 @@
         "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
         "no_access": "Votre Dashboard n'est plus actif.",
         "not_signed_in": "Reconnectez-vous pour continuer.",
-        "generic": "Le groupe n'a pas pu être créé. Réessayez."
+        "generic": "Le groupe n'a pas pu être créé. Réessayez.",
+        "invalid_sessions": "Les séances choisies sont invalides."
       },
       "endMode": {
         "label": "Fin de la période",
@@ -1106,7 +1105,27 @@
       "weeksLabel": "Nombre de semaines",
       "weeksHint": "À partir du premier jour choisi (compris) : une semaine = 7 jours. Maximum {max} semaines.",
       "weeksError": "Entrez un nombre entier de semaines entre 1 et {max}.",
-      "previewSkipped": "{count, plural, one {# séance d'aujourd'hui est déjà terminée : elle ne sera pas créée.} other {# séances d'aujourd'hui sont déjà terminées : elles ne seront pas créées.}}"
+      "previewSkipped": "{count, plural, one {# séance d'aujourd'hui est déjà terminée : elle ne sera pas créée.} other {# séances d'aujourd'hui sont déjà terminées : elles ne seront pas créées.}}",
+      "dayMode": {
+        "label": "Choix des jours",
+        "weekly": "Par jours de la semaine",
+        "calendar": "En choisissant les jours dans un calendrier"
+      },
+      "custom": {
+        "pickTitle": "Choisissez les jours",
+        "pickHint": "Touchez chaque jour où le groupe a une séance, touchez-le encore pour l'enlever. Vous donnerez les heures à l'étape suivante.",
+        "pickedCount": "{count, plural, =0 {Aucun jour choisi} one {# jour choisi} other {# jours choisis}}",
+        "needPeriod": "Choisissez d'abord une période valide.",
+        "listTitle": "Liste des séances",
+        "listHint": "Une ligne par jour choisi : donnez l'heure de début et de fin de chaque séance. Le calendrier en dessous montre le résultat.",
+        "sameTimesTitle": "Mêmes heures pour tous les jours",
+        "sameTimesHint": "Remplace les heures de tous les jours par une seule séance avec ces heures.",
+        "applyToAll": "Appliquer à tous les jours",
+        "removeDay": "Retirer ce jour",
+        "errors": {
+          "none": "Choisissez au moins un jour."
+        }
+      }
     },
     "page": {
       "back": "Retour aux groupes",
@@ -1119,7 +1138,15 @@
       "monthNav": "Mois",
       "previousMonth": "Mois précédent",
       "nextMonth": "Mois suivant",
-      "noSessions": "Aucune séance ce mois-ci."
+      "noSessions": "Aucune séance ce mois-ci.",
+      "manualSchedule": "Jours choisis un par un dans le calendrier",
+      "search": {
+        "label": "Rechercher une date",
+        "button": "Rechercher",
+        "clear": "Effacer la recherche",
+        "none": "Aucune séance de ce groupe le {date}.",
+        "found": "{count, plural, one {# séance} other {# séances}} le {date}."
+      }
     },
     "change": {
       "title": "Modifier le calendrier de « {name} »",
@@ -1129,7 +1156,7 @@
       "endDate": "Nouvelle date de fin",
       "startFixed": "Le début du groupe ({date}) ne change pas.",
       "reset": "Réinitialiser aussi les séances modifiées",
-      "resetHint": "Les séances déplacées ou supprimées une par une seront reconstruites selon la nouvelle semaine type. Les séances ajoutées sont toujours conservées.",
+      "resetHint": "Les séances déplacées une par une seront reconstruites selon la nouvelle semaine type. Les séances ajoutées sont toujours conservées.",
       "preview": "Voir ce qui va changer",
       "save": "Enregistrer le calendrier",
       "saving": "Enregistrement...",
@@ -1144,7 +1171,17 @@
         "no_access": "Votre Dashboard n'est plus actif.",
         "not_signed_in": "Reconnectez-vous pour continuer.",
         "generic": "Le calendrier n'a pas pu être modifié. Réessayez."
-      }
+      },
+      "deletedNote": "Une séance supprimée une par une est recréée si la nouvelle semaine type la prévoit.",
+      "manualNote": "Ce groupe n'a pas de semaine type : ses jours ont été choisis dans un calendrier. Pour les changer, modifiez ses séances une par une (Supprimer, Modifier date, Ajouter une séance). Une semaine type ajoutée ici s'ajoute aux séances existantes.",
+      "previewHint": "Vos séances actuelles pour ce groupe. Cliquez sur « Voir ce qui va changer » pour voir les jours ajoutés et retirés."
+    },
+    "preview": {
+      "title": "Aperçu du calendrier",
+      "hint": "Seulement les séances de ce groupe, mois par mois.",
+      "legend": "Jour avec séance",
+      "legendAdded": "Séance ajoutée",
+      "legendRemoved": "Séance retirée"
     }
   },
   "calendar": {
@@ -1176,11 +1213,10 @@
       "add": "Ajouter une séance"
     },
     "row": {
-      "cancel": "Supprimer",
-      "restore": "Restaurer",
+      "delete": "Supprimer",
+      "deleteConfirm": "Supprimer cette séance définitivement ? Cette action est irréversible.",
       "move": "Modifier date",
       "locked": "Passée",
-      "cancelled": "Supprimée",
       "moved": "Déplacée",
       "extra": "Ajoutée"
     },
@@ -1211,6 +1247,10 @@
       "end": "Fin",
       "confirm": "Ajouter",
       "back": "Retour"
+    },
+    "search": {
+      "label": "Rechercher une date",
+      "button": "Rechercher"
     }
   }
 }

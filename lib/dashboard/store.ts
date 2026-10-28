@@ -30,8 +30,14 @@ export const SESSION_COLUMNS = `
   s.id, s.group_id, s.date::text AS date,
   to_char(s.start_time, 'HH24:MI') AS start_time,
   to_char(s.end_time, 'HH24:MI') AS end_time,
-  s.status, s.origin, s.original_date::text AS original_date,
+  s.origin, s.original_date::text AS original_date,
   g.name AS group_name, g.color AS group_color`;
+
+/**
+ * Where a session comes from: the weekly pattern, "Modifier date", "Ajouter une séance", or a
+ * day picked by hand in the calendar when the group was created.
+ */
+export type SessionOrigin = 'rule' | 'moved' | 'extra' | 'manual';
 
 type SessionRowDb = {
   id: string;
@@ -39,8 +45,7 @@ type SessionRowDb = {
   date: string;
   start_time: string;
   end_time: string;
-  status: 'scheduled' | 'cancelled';
-  origin: 'rule' | 'moved' | 'extra';
+  origin: SessionOrigin;
   original_date: string | null;
   group_name: string;
   group_color: string;
@@ -54,8 +59,7 @@ export type SessionRow = {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'cancelled';
-  origin: 'rule' | 'moved' | 'extra';
+  origin: SessionOrigin;
   originalDate: string | null;
 };
 
@@ -68,7 +72,6 @@ export function toSessionRow(row: SessionRowDb): SessionRow {
     date: row.date,
     startTime: row.start_time,
     endTime: row.end_time,
-    status: row.status,
     origin: row.origin,
     originalDate: row.original_date,
   };
@@ -85,10 +88,7 @@ export function toExisting(row: SessionRow): ExistingSession {
   };
 }
 
-/**
- * The teacher's scheduled sessions between two dates, of every group. Cancelled sessions are
- * never in the way.
- */
+/** The teacher's sessions between two dates, of every group. */
 export async function loadScheduledSessions(
   db: Queryable,
   teacherId: string,
@@ -99,7 +99,7 @@ export async function loadScheduledSessions(
   const { rows } = await db.query<SessionRowDb>(
     `SELECT ${SESSION_COLUMNS}
        FROM sessions s JOIN groups g ON g.id = s.group_id
-      WHERE s.teacher_id = $1 AND s.status = 'scheduled'
+      WHERE s.teacher_id = $1
         AND s.date BETWEEN $2::date AND $3::date
         AND NOT (s.id = ANY($4::uuid[]))
       ORDER BY s.date, s.start_time`,
@@ -114,7 +114,7 @@ export async function insertSessions(
   teacherId: string,
   groupId: string,
   drafts: SessionDraft[],
-  origin: 'rule' | 'extra' = 'rule',
+  origin: 'rule' | 'extra' | 'manual' = 'rule',
 ): Promise<void> {
   if (drafts.length === 0) return;
   await client.query(

@@ -1,15 +1,13 @@
 import { getTranslations } from 'next-intl/server';
-import {
-  cancelSessionAction,
-  restoreSessionAction,
-} from '@/app/[locale]/(dashboard)/dashboard-actions';
+import { deleteSessionAction } from '@/app/[locale]/(dashboard)/dashboard-actions';
 import { secondaryButtonClass } from '@/components/auth/styles';
 import { Link } from '@/i18n/navigation';
 import { isPast } from '@/lib/dashboard/dates';
 import type { SessionRow } from '@/lib/dashboard/sessions';
+import { DeleteSessionForm } from './DeleteSessionForm';
 
 /**
- * The buttons of one session: "Supprimer" (or "Restaurer" when it is cancelled) and
+ * The buttons of one session: "Supprimer" (for good, after a confirmation) and
  * "Modifier date" (spec 5.3). A session that is over is locked: no buttons, and in the
  * read-only period nobody can change anything.
  */
@@ -30,37 +28,24 @@ export async function SessionActions({
   if (isPast(session, now))
     return <span className="text-xs text-muted">{t('locked')}</span>;
 
-  const form = (
-    action: (formData: FormData) => Promise<void>,
-    label: string,
-  ) => (
-    <form action={action}>
-      <input type="hidden" name="sessionId" value={session.id} />
-      <input type="hidden" name="retour" value={returnTo} />
-      <button type="submit" className={secondaryButtonClass}>
-        {label}
-      </button>
-    </form>
-  );
-
   return (
     <div className="flex flex-wrap gap-2">
-      {session.status === 'scheduled' ? (
-        <>
-          {form(cancelSessionAction, t('cancel'))}
-          <Link
-            href={{
-              pathname: `/calendrier/seances/${session.id}/deplacer`,
-              query: { retour: returnTo },
-            }}
-            className={secondaryButtonClass}
-          >
-            {t('move')}
-          </Link>
-        </>
-      ) : (
-        form(restoreSessionAction, t('restore'))
-      )}
+      <DeleteSessionForm
+        action={deleteSessionAction}
+        sessionId={session.id}
+        returnTo={returnTo}
+        label={t('delete')}
+        confirmText={t('deleteConfirm')}
+      />
+      <Link
+        href={{
+          pathname: `/calendrier/seances/${session.id}/deplacer`,
+          query: { retour: returnTo },
+        }}
+        className={secondaryButtonClass}
+      >
+        {t('move')}
+      </Link>
     </div>
   );
 }

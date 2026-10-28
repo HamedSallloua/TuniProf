@@ -18,7 +18,7 @@ import {
   secondaryButtonClass,
 } from '@/components/auth/styles';
 import { useRouter } from '@/i18n/navigation';
-import { addMonths, monthOf, startOfMonth } from '@/lib/dashboard/dates';
+import { monthsBetween } from '@/lib/dashboard/dates';
 import {
   formatDay,
   monthTitle,
@@ -27,13 +27,13 @@ import {
 } from '@/lib/dashboard/format';
 import {
   countByDate,
-  currentSchoolYear,
   endDateAfterWeeks,
   findConflicts,
   generateSessions,
   MAX_PERIOD_WEEKS,
   periodDays,
   summarizeRules,
+  validateCustomSessions,
   validateName,
   validatePeriod,
   validateRules,
@@ -50,10 +50,18 @@ import {
   WeekPatternEditor,
   type Days,
 } from './WeekPatternEditor';
+import {
+  CustomSessionsEditor,
+  customDayErrors,
+  customSessionsOf,
+  DEFAULT_CUSTOM_SLOT,
+  type CustomDays,
+} from './CustomSessionsEditor';
 import { DayTimeline, type TimelineItem } from './DayTimeline';
 import { MonthGrid } from './MonthGrid';
 
-// The group wizard (spec 5.2): name, period, weekly pattern with a live preview, price.
+// The group wizard (spec 5.2): name, period, weekly pattern (or days picked in a calendar)
+// with a live preview, price.
 // Everything shown here is also checked by the server when the group is created.
 
 const STEPS = ['name', 'period', 'pattern', 'price'] as const;
@@ -88,7 +96,11 @@ export function GroupWizard({ today }: { today: string }) {
     : NaN;
   const weeksEnd = endDateAfterWeeks(start, weeksCount);
   const end = endMode === 'date' ? endPicked : (weeksEnd ?? '');
+  // How the days of the group are chosen: by weekday (the weekly pattern of step 3) or by
+  // picking each day in a calendar (then step 3 is the list of those sessions).
+  const [dayMode, setDayMode] = useState<'weekly' | 'calendar'>('weekly');
   const [days, setDays] = useState<Days>({});
+  const [custom, setCustom] = useState<CustomDays>({});
   const [pricing, setPricing] = useState<'per_session' | 'per_month'>(
     'per_session',
   );
@@ -110,14 +122,37 @@ export function GroupWizard({ today }: { today: string }) {
 
   // ---------------------------------------------------------------- what the form means
   const periodError = validatePeriod(start, end);
-  const rules: Rule[] = useMemo(() => rulesFromDays(days), [days]);
+  const rules: Rule[] = useMemo(
+    () => (dayMode === 'weekly' ? rulesFromDays(days) : []),
+    [dayMode, days],
+  );
   const rulesCheck = useMemo(() => validateRules(rules), [rules]);
+  const customList = useMemo(
+    () => customSessionsOf(custom, start, end),
+    [custom, start, end],
+  );
+  const customDates = useMemo(
+    () => [...new Set(customList.map((s) => s.date))],
+    [customList],
+  );
+  const customError = useMemo(
+    () =>
+      periodError ? 'none' : validateCustomSessions(customList, start, end),
+    [periodError, customList, start, end],
+  );
+  const customErrors = useMemo(() => customDayErrors(custom), [custom]);
+  // The sessions the form means, whichever way the days were chosen.
+  const patternOk = dayMode === 'weekly' ? rulesCheck.ok : customError === null;
   // A session of today that is already over is not created (the server does the same).
   const [now] = useState(() => new Date());
   const allDrafts = useMemo(
     () =>
-      !periodError && rulesCheck.ok ? generateSessions(rules, start, end) : [],
-    [periodError, rulesCheck.ok, rules, start, end],
+      periodError || !patternOk
+        ? []
+        : dayMode === 'weekly'
+          ? generateSessions(rules, start, end)
+          : customList,
+    [periodError, patternOk, dayMode, rules, customList, start, end],
   );
   const drafts = useMemo(() => withoutEnded(allDrafts, now), [allDrafts, now]);
   const skippedCount = allDrafts.length - drafts.length;
@@ -163,17 +198,10 @@ export function GroupWizard({ today }: { today: string }) {
     () => new Set(conflicts.map((c) => c.draft.date)),
     [conflicts],
   );
-  const months = useMemo(() => {
-    if (periodError) return [];
-    const list: string[] = [];
-    for (
-      let m = monthOf(start);
-      m <= monthOf(end);
-      m = monthOf(addMonths(startOfMonth(`${m}-01`), 1))
-    )
-      list.push(m);
-    return list;
-  }, [periodError, start, end]);
+  const months = useMemo(
+    () => (periodError ? [] : monthsBetween(start, end)),
+    [periodError, start, end],
+  );
 
   const dayItems = useCallback(
     (date: string): TimelineItem[] => [
@@ -203,11 +231,10 @@ export function GroupWizard({ today }: { today: string }) {
   // ---------------------------------------------------------------------- navigation
   const canNext =
     (step === 0 && validateName(name)) ||
-    (step === 1 && !periodError) ||
-    (step === 2 &&
-      rulesCheck.ok &&
-      existing !== null &&
-      conflicts.length === 0);
+    (step === 1 &&
+      !periodError &&
+      (dayMode === 'weekly' || customDates.length > 0)) ||
+    (step === 2 && patternOk && existing !== null && conflicts.length === 0);
 
   function create() {
     setError(null);
@@ -218,6 +245,7 @@ export function GroupWizard({ today }: { today: string }) {
         startDate: start,
         endDate: end,
         rules,
+        customSessions: dayMode === 'calendar' ? customList : undefined,
         pricingModel: pricing,
         referencePriceMillimes: priceMillimes,
       });
@@ -239,6 +267,13 @@ export function GroupWizard({ today }: { today: string }) {
   }
 
   const weekLabels = weekdayNames(locale, 'narrow');
+  const toggleCustomDay = (date: string) =>
+    setCustom((current) => {
+      const next = { ...current };
+      if (next[date]) delete next[date];
+      else next[date] = [DEFAULT_CUSTOM_SLOT];
+      return next;
+    });
   const shownConflicts =
     serverConflicts && serverConflicts.length > 0 ? serverConflicts : conflicts;
 
@@ -383,18 +418,6 @@ export function GroupWizard({ today }: { today: string }) {
               </p>
             </div>
           )}
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={() => {
-              const year = currentSchoolYear(today);
-              setStart(year.start);
-              setEndMode('date');
-              setEndPicked(year.end);
-            }}
-          >
-            {t('schoolYear')}
-          </button>
           {end !== '' && (
             <p
               role="status"
@@ -420,27 +443,132 @@ export function GroupWizard({ today }: { today: string }) {
                   })}
             </p>
           )}
+
+          <fieldset className="space-y-2">
+            <legend className="font-medium">{t('dayMode.label')}</legend>
+            {(['weekly', 'calendar'] as const).map((mode) => (
+              <label key={mode} className="flex min-h-11 items-center gap-3">
+                <input
+                  type="radio"
+                  name="day-mode"
+                  checked={dayMode === mode}
+                  onChange={() => setDayMode(mode)}
+                  className="size-5 accent-primary"
+                />
+                {t(`dayMode.${mode}`)}
+              </label>
+            ))}
+          </fieldset>
+
+          {dayMode === 'calendar' && (
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-lg font-semibold text-primary">
+                  {t('custom.pickTitle')}
+                </h2>
+                <p className="text-sm text-muted">{t('custom.pickHint')}</p>
+                <p role="status" className="mt-1 text-sm font-medium">
+                  {t('custom.pickedCount', { count: customDates.length })}
+                </p>
+              </div>
+              {periodError ? (
+                <p className="text-sm text-muted">{t('custom.needPeriod')}</p>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {months.map((month) => (
+                    <div
+                      key={month}
+                      className="rounded-card border border-border bg-surface p-3"
+                    >
+                      <h3 className="mb-2 text-center font-medium first-letter:uppercase">
+                        {monthTitle(month, locale)}
+                      </h3>
+                      <MonthGrid
+                        month={month}
+                        weekdayLabels={weekLabels}
+                        renderDay={(date) => {
+                          const selectable =
+                            date >= start && date <= end && date >= today;
+                          const picked = Boolean(custom[date]);
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => toggleCustomDay(date)}
+                              disabled={!selectable}
+                              aria-pressed={picked}
+                              aria-label={formatDay(date, locale, {
+                                dateStyle: 'full',
+                              })}
+                              className="flex min-h-11 w-9 items-center justify-center rounded-md disabled:opacity-40"
+                            >
+                              <span
+                                className={
+                                  'flex size-8 items-center justify-center rounded-full text-sm ' +
+                                  (picked
+                                    ? 'bg-primary font-semibold text-primary-foreground'
+                                    : selectable
+                                      ? 'hover:bg-secondary'
+                                      : '')
+                                }
+                              >
+                                {Number(date.slice(8))}
+                              </span>
+                            </button>
+                          );
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
 
       {/* ------------------------------------------------------------ 3. pattern */}
       {step === 2 && (
         <section className="space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-primary">
-              {t('patternTitle')}
-            </h2>
-            <p className="text-sm text-muted">{t('patternHint')}</p>
-          </div>
+          {dayMode === 'weekly' ? (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold text-primary">
+                  {t('patternTitle')}
+                </h2>
+                <p className="text-sm text-muted">{t('patternHint')}</p>
+              </div>
 
-          <WeekPatternEditor
-            days={days}
-            onChange={setDays}
-            dayErrors={dayErrors}
-          />
+              <WeekPatternEditor
+                days={days}
+                onChange={setDays}
+                dayErrors={dayErrors}
+              />
 
-          {rules.length === 0 && (
-            <p className="text-sm text-muted">{t('ruleErrors.none')}</p>
+              {rules.length === 0 && (
+                <p className="text-sm text-muted">{t('ruleErrors.none')}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold text-primary">
+                  {t('custom.listTitle')}
+                </h2>
+                <p className="text-sm text-muted">{t('custom.listHint')}</p>
+              </div>
+
+              <CustomSessionsEditor
+                days={Object.fromEntries(
+                  customDates.map((date) => [date, custom[date]]),
+                )}
+                onChange={setCustom}
+                dayErrors={customErrors}
+              />
+
+              {customDates.length === 0 && (
+                <p className="text-sm text-accent">{t('custom.errors.none')}</p>
+              )}
+            </>
           )}
 
           {/* Live preview calendar */}
@@ -591,12 +719,14 @@ export function GroupWizard({ today }: { today: string }) {
               </dd>
               <dt className="font-medium">{t('summary.pattern')}</dt>
               <dd>
-                {summarizeRules(rules)
-                  .map(
-                    (d) =>
-                      `${weekdayName(d.weekday, locale)} ${d.slots.map((s) => `${s.startTime}-${s.endTime}`).join(', ')}`,
-                  )
-                  .join(' · ')}
+                {dayMode === 'calendar'
+                  ? t('summary.pickedDays', { count: customDates.length })
+                  : summarizeRules(rules)
+                      .map(
+                        (d) =>
+                          `${weekdayName(d.weekday, locale)} ${d.slots.map((s) => `${s.startTime}-${s.endTime}`).join(', ')}`,
+                      )
+                      .join(' · ')}
               </dd>
               <dt className="font-medium">{t('summary.sessions')}</dt>
               <dd>{t('summary.sessionCount', { count: drafts.length })}</dd>

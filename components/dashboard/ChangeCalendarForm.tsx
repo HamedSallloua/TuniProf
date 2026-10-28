@@ -9,14 +9,17 @@ import {
   secondaryButtonClass,
 } from '@/components/auth/styles';
 import { useRouter } from '@/i18n/navigation';
+import { monthsBetween } from '@/lib/dashboard/dates';
 import { formatDay } from '@/lib/dashboard/format';
 import {
   validatePeriod,
   validateRules,
   type Conflict,
   type Rule,
+  type SessionDraft,
 } from '@/lib/dashboard/schedule';
 import { ConflictList } from './ConflictList';
+import { GroupCalendarPreview } from './GroupCalendarPreview';
 import { toConflictLines } from './GroupWizard';
 import {
   dayErrorsOf,
@@ -28,24 +31,31 @@ import {
 
 /**
  * "Modifier calendrier" (spec 5.3): the weekly pattern and the end date change FROM an effective
- * date. Past sessions are never touched; sessions moved or cancelled one by one are kept unless
- * the box is ticked. "Voir ce qui va changer" runs the same change without saving it.
+ * date. Past sessions are never touched; sessions moved one by one are kept unless the box is
+ * ticked. "Voir ce qui va changer" runs the same change without saving it, and the calendar
+ * preview of the group then shows the days that would be added and removed.
  */
 export function ChangeCalendarForm({
   group,
+  sessions,
   today,
 }: {
   group: {
     id: string;
     name: string;
+    color: string;
     startDate: string;
     endDate: string;
     rules: Rule[];
   };
+  /** The group's sessions as they are now. */
+  sessions: SessionDraft[];
   today: string;
 }) {
   const t = useTranslations('groups.change');
   const tw = useTranslations('groups.wizard');
+  const tp = useTranslations('groups.preview');
+  const tcal = useTranslations('calendar');
   const locale = useLocale();
   const router = useRouter();
 
@@ -54,8 +64,10 @@ export function ChangeCalendarForm({
   const [endDate, setEndDate] = useState(group.endDate);
   const [resetModified, setResetModified] = useState(false);
   const [preview, setPreview] = useState<{
-    removed: number;
-    created: number;
+    removed: SessionDraft[];
+    created: SessionDraft[];
+    removedCount: number;
+    createdCount: number;
   } | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +80,29 @@ export function ChangeCalendarForm({
   const dateError = effectiveDate < today || effectiveDate === '';
   const ready = check.ok && !periodError && !dateError;
 
+  // The calendar below: the group's sessions now, or what they would be after "Voir ce qui va
+  // changer".
+  const counts = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const session of sessions)
+      result[session.date] = (result[session.date] ?? 0) + 1;
+    for (const session of preview?.removed ?? [])
+      result[session.date] = (result[session.date] ?? 0) - 1;
+    for (const session of preview?.created ?? [])
+      result[session.date] = (result[session.date] ?? 0) + 1;
+    return result;
+  }, [sessions, preview]);
+  const previewMonths = monthsBetween(
+    [group.startDate, ...sessions.map((s) => s.date)].sort()[0],
+    [
+      group.endDate,
+      periodError ? group.endDate : endDate,
+      ...sessions.map((s) => s.date),
+    ]
+      .sort()
+      .at(-1) as string,
+  );
+
   function run(dryRun: boolean) {
     setError(null);
     setConflicts([]);
@@ -79,9 +114,24 @@ export function ChangeCalendarForm({
         dryRun,
       );
       if (result.ok && 'removed' in result) {
-        if (dryRun)
-          setPreview({ removed: result.removed, created: result.created });
-        else {
+        if (dryRun) {
+          // A session removed and created again identically is not a change: only the real
+          // differences are drawn on the calendar.
+          const key = (s: SessionDraft) =>
+            `${s.date}|${s.startTime}|${s.endTime}`;
+          const removedKeys = new Set(result.removedSessions.map(key));
+          const createdKeys = new Set(result.createdSessions.map(key));
+          setPreview({
+            removed: result.removedSessions.filter(
+              (s) => !createdKeys.has(key(s)),
+            ),
+            created: result.createdSessions.filter(
+              (s) => !removedKeys.has(key(s)),
+            ),
+            removedCount: result.removed,
+            createdCount: result.created,
+          });
+        } else {
           router.push(`/groupes/${group.id}`);
           router.refresh();
         }
@@ -174,6 +224,15 @@ export function ChangeCalendarForm({
         </div>
       </section>
 
+      {group.rules.length === 0 && (
+        <p
+          role="note"
+          className="rounded-md border border-border bg-secondary p-3 text-sm"
+        >
+          {t('manualNote')}
+        </p>
+      )}
+
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-primary">
           {tw('patternTitle')}
@@ -206,6 +265,7 @@ export function ChangeCalendarForm({
           <span className="block text-sm text-muted">{t('resetHint')}</span>
         </span>
       </label>
+      <p className="text-sm text-muted">{t('deletedNote')}</p>
 
       {conflicts.length > 0 && (
         <ConflictList lines={toConflictLines(conflicts)} />
@@ -216,11 +276,38 @@ export function ChangeCalendarForm({
           className="rounded-md border border-primary bg-secondary p-3 text-sm text-primary"
         >
           {t('previewResult', {
-            removed: preview.removed,
-            created: preview.created,
+            removed: preview.removedCount,
+            created: preview.createdCount,
           })}
         </p>
       )}
+
+      <section aria-labelledby="change-preview" className="space-y-3">
+        <div>
+          <h2
+            id="change-preview"
+            className="text-lg font-semibold text-primary"
+          >
+            {tp('title')}
+          </h2>
+          <p className="text-sm text-muted">{t('previewHint')}</p>
+        </div>
+        <GroupCalendarPreview
+          months={previewMonths}
+          counts={counts}
+          color={group.color}
+          locale={locale}
+          today={today}
+          added={preview?.created.map((s) => s.date)}
+          removed={preview?.removed.map((s) => s.date)}
+          labels={{
+            sessions: (count) => tcal('sessionsCount', { count }),
+            legendSessions: tp('legend'),
+            legendAdded: tp('legendAdded'),
+            legendRemoved: tp('legendRemoved'),
+          }}
+        />
+      </section>
 
       <div className="flex flex-wrap gap-3">
         <button

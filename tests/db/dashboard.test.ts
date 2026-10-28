@@ -13,11 +13,11 @@ import { eachDate } from '@/lib/dashboard/dates';
 import { countByDate, type Rule } from '@/lib/dashboard/schedule';
 import {
   addSession,
-  cancelSession,
+  deleteSession,
   getSession,
+  listGroupSessions,
   listSessions,
   moveSession,
-  restoreSession,
   upcomingSessions,
 } from '@/lib/dashboard/sessions';
 import { clearAuthTables } from './auth-helpers';
@@ -98,12 +98,12 @@ describe.skipIf(!testDatabaseUrl)(
       return result.groupId;
     }
 
-    const dates = async (groupId: string, status?: 'scheduled' | 'cancelled') =>
+    const dates = async (groupId: string) =>
       (
         await pool.query(
           `SELECT date::text AS date FROM sessions
-          WHERE group_id = $1 AND ($2::text IS NULL OR status = $2) ORDER BY date, start_time`,
-          [groupId, status ?? null],
+          WHERE group_id = $1 ORDER BY date, start_time`,
+          [groupId],
         )
       ).rows.map((r) => r.date as string);
 
@@ -126,12 +126,11 @@ describe.skipIf(!testDatabaseUrl)(
         date: string,
         start: string,
         end: string,
-        status = 'scheduled',
       ) =>
         pool.query(
-          `INSERT INTO sessions (teacher_id, group_id, date, start_time, end_time, status, origin)
-         VALUES ($1, $2, $3, $4, $5, $6, 'extra')`,
-          [owner, group, date, start, end, status],
+          `INSERT INTO sessions (teacher_id, group_id, date, start_time, end_time, origin)
+         VALUES ($1, $2, $3, $4, $5, 'extra')`,
+          [owner, group, date, start, end],
         );
 
       it('refuses two overlapping sessions of one teacher, even from different groups', async () => {
@@ -163,17 +162,6 @@ describe.skipIf(!testDatabaseUrl)(
         await insert(teacher, g1, '2026-10-05', '07:00', '08:00');
         await insert(teacher, g1, '2026-10-06', '08:00', '10:00');
         await insert(other, g2, '2026-10-05', '08:00', '10:00');
-      });
-
-      it('a cancelled session is not in the way, but cannot come back over another session', async () => {
-        const g1 = await groupFor(teacher);
-        await insert(teacher, g1, '2026-10-05', '08:00', '10:00', 'cancelled');
-        await insert(teacher, g1, '2026-10-05', '09:00', '11:00'); // allowed: the first is cancelled
-        await expect(
-          pool.query(
-            `UPDATE sessions SET status = 'scheduled' WHERE date = '2026-10-05' AND start_time = '08:00'`,
-          ),
-        ).rejects.toMatchObject({ code: EXCLUSION_VIOLATION });
       });
 
       it('refuses a session that does not end after it starts', async () => {
@@ -479,9 +467,12 @@ describe.skipIf(!testDatabaseUrl)(
           rule(7, 1, '08:00', '10:00'),
         ],
       });
-      const sessions = (
-        await listSessions(pool, teacher, '2026-09-07', '2026-09-13')
-      ).filter((s) => s.status === 'scheduled');
+      const sessions = await listSessions(
+        pool,
+        teacher,
+        '2026-09-07',
+        '2026-09-13',
+      );
       const counts = countByDate(sessions);
       expect(
         eachDate('2026-09-07', '2026-09-13').map((d) => counts.get(d) ?? 0),
@@ -490,8 +481,8 @@ describe.skipIf(!testDatabaseUrl)(
 
     // ------------------------------------------------------------ one session at a time
 
-    describe('"Supprimer" and "Restaurer" (acceptance test 2)', () => {
-      it('cancels only that date; the other Mondays stay; restoring brings it back', async () => {
+    describe('"Supprimer" a session for good', () => {
+      it('deletes only that date; the other Mondays stay and nothing can bring it back', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-09-28'));
         const [, second] = await listSessions(
           pool,
@@ -501,67 +492,40 @@ describe.skipIf(!testDatabaseUrl)(
         );
         expect(second.date).toBe('2026-09-14');
 
-        expect(await cancelSession(pool, teacher, second.id, NOW)).toEqual({
+        expect(await deleteSession(pool, teacher, second.id, NOW)).toEqual({
           ok: true,
         });
-        expect(await dates(group, 'scheduled')).toEqual([
+        expect(await dates(group)).toEqual([
           '2026-09-07',
           '2026-09-21',
           '2026-09-28',
         ]);
-        expect(await dates(group, 'cancelled')).toEqual(['2026-09-14']);
-        // the cancelled one is still returned (greyed in the day overlay), flagged
-        const day = await listSessions(
-          pool,
-          teacher,
-          '2026-09-14',
-          '2026-09-14',
-        );
-        expect(day.map((s) => s.status)).toEqual(['cancelled']);
-        // cancelling twice
-        expect(await cancelSession(pool, teacher, second.id, NOW)).toEqual({
+        // really gone: not in the calendar, not found any more
+        expect(
+          await listSessions(pool, teacher, '2026-09-14', '2026-09-14'),
+        ).toEqual([]);
+        expect(await getSession(pool, teacher, second.id)).toBeNull();
+        expect(await deleteSession(pool, teacher, second.id, NOW)).toEqual({
           ok: false,
-          reason: 'not_scheduled',
-        });
-
-        expect(await restoreSession(pool, teacher, second.id, NOW)).toEqual({
-          ok: true,
-        });
-        expect(await dates(group, 'scheduled')).toEqual([
-          '2026-09-07',
-          '2026-09-14',
-          '2026-09-21',
-          '2026-09-28',
-        ]);
-        expect(await restoreSession(pool, teacher, second.id, NOW)).toEqual({
-          ok: false,
-          reason: 'not_scheduled',
+          reason: 'not_found',
         });
       });
 
-      it('frees the slot for another group, and restoring then reports what is in the way', async () => {
-        const group = await make(teacher, mondays('2026-09-07', '2026-09-14'));
+      it('frees the slot for another group', async () => {
+        await make(teacher, mondays('2026-09-07', '2026-09-14'));
         const [first] = await listSessions(
           pool,
           teacher,
           '2026-09-07',
           '2026-09-07',
         );
-        await cancelSession(pool, teacher, first.id, NOW);
+        await deleteSession(pool, teacher, first.id, NOW);
 
         const taken = await make(teacher, {
           ...mondays('2026-09-07', '2026-09-07', '09:00', '11:00'),
           name: 'Groupe B',
         });
         expect(await dates(taken)).toEqual(['2026-09-07']);
-
-        const result = await restoreSession(pool, teacher, first.id, NOW);
-        expect(result).toMatchObject({ ok: false, reason: 'conflict' });
-        if (!result.ok)
-          expect(result.conflicts?.map((c) => c.groupName)).toEqual([
-            'Groupe B',
-          ]);
-        expect(await dates(group, 'cancelled')).toEqual(['2026-09-07']);
       });
 
       it('past sessions are locked', async () => {
@@ -572,14 +536,8 @@ describe.skipIf(!testDatabaseUrl)(
           '2026-09-07',
           '2026-09-07',
         );
-        const later = new Date('2026-09-07T08:30:00Z'); // 09:30 in Tunis: the session (08-10) is running, not over
-        expect(await cancelSession(pool, teacher, first.id, later)).toEqual({
-          ok: true,
-        });
-        await restoreSession(pool, teacher, first.id, later);
-
         const over = new Date('2026-09-07T09:00:00Z'); // 10:00 in Tunis: it just ended
-        expect(await cancelSession(pool, teacher, first.id, over)).toEqual({
+        expect(await deleteSession(pool, teacher, first.id, over)).toEqual({
           ok: false,
           reason: 'past',
         });
@@ -594,6 +552,11 @@ describe.skipIf(!testDatabaseUrl)(
         ).toEqual({
           ok: false,
           reason: 'past',
+        });
+
+        const later = new Date('2026-09-07T08:30:00Z'); // 09:30 in Tunis: it is running, not over
+        expect(await deleteSession(pool, teacher, first.id, later)).toEqual({
+          ok: true,
         });
       });
     });
@@ -625,7 +588,7 @@ describe.skipIf(!testDatabaseUrl)(
           origin: 'moved',
           originalDate: '2026-09-14',
         });
-        expect(await dates(group, 'scheduled')).toEqual([
+        expect(await dates(group)).toEqual([
           '2026-09-07',
           '2026-09-08',
           '2026-09-21',
@@ -746,7 +709,7 @@ describe.skipIf(!testDatabaseUrl)(
         });
       });
 
-      it('refuses nothing-changed, bad values and sessions that are cancelled', async () => {
+      it('refuses nothing-changed, bad values and sessions that are deleted', async () => {
         await make(teacher, mondays('2026-09-07', '2026-09-21'));
         const [first] = await listSessions(
           pool,
@@ -790,7 +753,7 @@ describe.skipIf(!testDatabaseUrl)(
             NOW,
           ),
         ).toEqual({ ok: false, reason: 'invalid' });
-        await cancelSession(pool, teacher, first.id, NOW);
+        await deleteSession(pool, teacher, first.id, NOW);
         expect(
           await moveSession(
             pool,
@@ -799,7 +762,7 @@ describe.skipIf(!testDatabaseUrl)(
             { ...slot, date: '2026-09-08' },
             NOW,
           ),
-        ).toEqual({ ok: false, reason: 'not_scheduled' });
+        ).toEqual({ ok: false, reason: 'not_found' });
       });
     });
 
@@ -853,7 +816,7 @@ describe.skipIf(!testDatabaseUrl)(
     });
 
     describe('"Prochaines séances"', () => {
-      it('lists the rest of today and tomorrow, not what is over, cancelled or later', async () => {
+      it('lists the rest of today and tomorrow, not what is over, deleted or later', async () => {
         const group = await make(teacher, {
           ...mondays('2026-09-07', '2026-09-30'),
           rules: [
@@ -871,7 +834,7 @@ describe.skipIf(!testDatabaseUrl)(
         ]);
 
         const afternoon = list[0];
-        await cancelSession(pool, teacher, afternoon.id, monday);
+        await deleteSession(pool, teacher, afternoon.id, monday);
         expect(
           (await upcomingSessions(pool, teacher, monday)).map((s) => s.date),
         ).toEqual(['2026-09-08']);
@@ -933,7 +896,7 @@ describe.skipIf(!testDatabaseUrl)(
           },
           { now: noon },
         );
-        expect(result).toEqual({ ok: true, removed: 3, created: 4 });
+        expect(result).toMatchObject({ ok: true, removed: 3, created: 4 });
         expect(
           (
             await pool.query(
@@ -966,7 +929,7 @@ describe.skipIf(!testDatabaseUrl)(
           },
           { now },
         );
-        expect(result).toEqual({ ok: true, removed: 3, created: 3 });
+        expect(result).toMatchObject({ ok: true, removed: 3, created: 3 });
         // Monday 7 and 14 September stay (before the effective date); then Wednesdays.
         expect(await dates(group)).toEqual([
           '2026-09-07',
@@ -983,7 +946,7 @@ describe.skipIf(!testDatabaseUrl)(
         );
       });
 
-      it('keeps sessions moved or cancelled one by one, unless the reset box is ticked', async () => {
+      it('keeps sessions moved one by one, unless the reset box is ticked; a deleted one comes back', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-10-12'));
         const sessions = await listSessions(
           pool,
@@ -992,7 +955,7 @@ describe.skipIf(!testDatabaseUrl)(
           '2026-10-12',
         );
         const byDate = (d: string) => sessions.find((s) => s.date === d)!;
-        await cancelSession(pool, teacher, byDate('2026-09-21').id, now); // cancelled one by one
+        await deleteSession(pool, teacher, byDate('2026-09-21').id, now); // deleted one by one
         await moveSession(
           pool,
           teacher,
@@ -1022,12 +985,13 @@ describe.skipIf(!testDatabaseUrl)(
           now,
         });
         expect(kept.ok).toBe(true);
-        // 21 Sept stays cancelled (not regenerated); the moved one stays at 29 Sept and 28 Sept is
-        // not regenerated; the extra stays; the untouched Mondays are rebuilt at 09:00.
-        expect(await dates(group, 'cancelled')).toEqual(['2026-09-21']);
-        expect(await dates(group, 'scheduled')).toEqual([
+        // 21 Sept was deleted, so the new pattern creates it again; the moved one stays at 29 Sept
+        // and 28 Sept is not regenerated; the extra stays; the untouched Mondays are rebuilt at
+        // 09:00.
+        expect(await dates(group)).toEqual([
           '2026-09-07',
           '2026-09-14',
+          '2026-09-21',
           '2026-09-29',
           '2026-10-01',
           '2026-10-05',
@@ -1053,8 +1017,7 @@ describe.skipIf(!testDatabaseUrl)(
           { now },
         );
         expect(reset.ok).toBe(true);
-        expect(await dates(group, 'cancelled')).toEqual([]);
-        expect(await dates(group, 'scheduled')).toEqual([
+        expect(await dates(group)).toEqual([
           '2026-09-07',
           '2026-09-14',
           '2026-09-21',
@@ -1080,7 +1043,7 @@ describe.skipIf(!testDatabaseUrl)(
           },
           { now, dryRun: true },
         );
-        expect(preview).toEqual({ ok: true, removed: 3, created: 2 });
+        expect(preview).toMatchObject({ ok: true, removed: 3, created: 2 });
         expect(await dates(group)).toEqual(before);
         expect((await getGroup(pool, teacher, group))?.rules[0].weekday).toBe(
           1,
@@ -1193,6 +1156,199 @@ describe.skipIf(!testDatabaseUrl)(
       });
     });
 
+    // ------------------------------------------------------- days picked in a calendar
+
+    describe('a group whose days are picked in a calendar', () => {
+      const picked = (
+        sessions: { date: string; startTime: string; endTime: string }[],
+        name = 'Groupe manuel',
+      ): GroupInput => ({
+        name,
+        startDate: '2026-09-07',
+        endDate: '2026-09-30',
+        rules: [],
+        customSessions: sessions,
+        pricingModel: 'per_session',
+        referencePriceMillimes: null,
+      });
+      const slot = (date: string, startTime = '08:00', endTime = '10:00') => ({
+        date,
+        startTime,
+        endTime,
+      });
+
+      it('creates exactly the picked sessions, with no weekly pattern', async () => {
+        const result = await createGroup(
+          pool,
+          teacher,
+          picked([
+            slot('2026-09-09'),
+            slot('2026-09-09', '14:00', '16:00'),
+            slot('2026-09-21', '09:00', '10:00'),
+          ]),
+        );
+        expect(result).toMatchObject({ ok: true, sessionCount: 3 });
+        if (!result.ok) return;
+        expect(await dates(result.groupId)).toEqual([
+          '2026-09-09',
+          '2026-09-09',
+          '2026-09-21',
+        ]);
+        expect((await getGroup(pool, teacher, result.groupId))?.rules).toEqual(
+          [],
+        );
+        const sessions = await listGroupSessions(pool, teacher, result.groupId);
+        expect(sessions.map((s) => s.origin)).toEqual([
+          'manual',
+          'manual',
+          'manual',
+        ]);
+      });
+
+      it('refuses bad picks and creates nothing', async () => {
+        const bad = async (sessions: ReturnType<typeof slot>[]) =>
+          createGroup(pool, teacher, picked(sessions));
+        expect(await bad([])).toMatchObject({
+          ok: false,
+          reason: 'invalid_sessions',
+        });
+        // outside the period
+        expect(await bad([slot('2026-10-05')])).toMatchObject({
+          ok: false,
+          reason: 'invalid_sessions',
+        });
+        // the end is not after the start
+        expect(await bad([slot('2026-09-09', '10:00', '10:00')])).toMatchObject(
+          { ok: false, reason: 'invalid_sessions' },
+        );
+        // two sessions of one day that overlap
+        expect(
+          await bad([
+            slot('2026-09-09', '08:00', '10:00'),
+            slot('2026-09-09', '09:00', '11:00'),
+          ]),
+        ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
+        // four sessions in one day
+        expect(
+          await bad([
+            slot('2026-09-09', '08:00', '09:00'),
+            slot('2026-09-09', '09:00', '10:00'),
+            slot('2026-09-09', '10:00', '11:00'),
+            slot('2026-09-09', '11:00', '12:00'),
+          ]),
+        ).toMatchObject({ ok: false, reason: 'invalid_sessions' });
+        // a weekly pattern next to the picked days
+        expect(
+          await createGroup(pool, teacher, {
+            ...picked([slot('2026-09-09')]),
+            rules: [rule(1, 1, '08:00', '10:00')],
+          }),
+        ).toMatchObject({ ok: false, reason: 'invalid_rules' });
+        expect(await listGroups(pool, teacher)).toEqual([]);
+      });
+
+      it("reports the conflicts with the teacher's other sessions", async () => {
+        await make(teacher, mondays('2026-09-07', '2026-09-21'));
+        const result = await createGroup(
+          pool,
+          teacher,
+          picked([slot('2026-09-14', '09:00', '11:00'), slot('2026-09-15')]),
+        );
+        expect(result).toMatchObject({ ok: false, reason: 'conflicts' });
+        if (result.ok || result.reason !== 'conflicts') return;
+        expect(result.conflicts?.map((c) => c.draft.date)).toEqual([
+          '2026-09-14',
+        ]);
+      });
+
+      it('leaves out a picked session that is already over', async () => {
+        const monday = new Date('2026-09-07T15:00:00Z'); // 16:00 in Tunis
+        const result = await createGroupAt(
+          pool,
+          teacher,
+          picked([slot('2026-09-07'), slot('2026-09-08')]),
+          monday,
+        );
+        expect(result).toMatchObject({ ok: true, sessionCount: 1 });
+        if (result.ok)
+          expect(await dates(result.groupId)).toEqual(['2026-09-08']);
+      });
+
+      it('"Modifier calendrier" keeps the picked sessions and adds a new pattern next to them', async () => {
+        const created = await createGroup(
+          pool,
+          teacher,
+          picked([slot('2026-09-09', '14:00', '16:00')]),
+        );
+        if (!created.ok) throw new Error('not created');
+        const now = new Date('2026-09-08T08:00:00Z');
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          created.groupId,
+          {
+            effectiveDate: '2026-09-08',
+            endDate: '2026-09-30',
+            rules: [rule(1, 1, '08:00', '10:00')],
+            resetModified: true,
+          },
+          { now },
+        );
+        expect(result).toMatchObject({ ok: true, removed: 0, created: 3 });
+        expect(await dates(created.groupId)).toEqual([
+          '2026-09-09',
+          '2026-09-14',
+          '2026-09-21',
+          '2026-09-28',
+        ]);
+      });
+    });
+
+    describe('what "Modifier calendrier" reports', () => {
+      it('lists the sessions it removes and creates, and saves nothing on a dry run', async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
+        const now = new Date('2026-09-08T08:00:00Z');
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          {
+            effectiveDate: '2026-09-08',
+            endDate: '2026-09-21',
+            rules: [rule(3, 1, '14:00', '16:00')],
+            resetModified: false,
+          },
+          { now, dryRun: true },
+        );
+        expect(result).toMatchObject({ ok: true, removed: 2, created: 2 });
+        if (!result.ok) return;
+        expect(result.removedSessions.map((s) => s.date)).toEqual([
+          '2026-09-14',
+          '2026-09-21',
+        ]);
+        expect(result.createdSessions).toEqual([
+          { date: '2026-09-09', startTime: '14:00', endTime: '16:00' },
+          { date: '2026-09-16', startTime: '14:00', endTime: '16:00' },
+        ]);
+        expect(await dates(group)).toEqual([
+          '2026-09-07',
+          '2026-09-14',
+          '2026-09-21',
+        ]);
+      });
+
+      it("listGroupSessions returns only that group's sessions, oldest first", async () => {
+        const a = await make(teacher, mondays('2026-09-07', '2026-09-14'));
+        await make(teacher, {
+          ...mondays('2026-09-08', '2026-09-30', '14:00', '15:00'),
+          name: 'Groupe B',
+        });
+        expect(
+          (await listGroupSessions(pool, teacher, a)).map((s) => s.date),
+        ).toEqual(['2026-09-07', '2026-09-14']);
+      });
+    });
+
     // -------------------------------------------------------------------------- isolation
 
     describe('a teacher only reaches their own rows (invariant 16)', () => {
@@ -1211,14 +1367,11 @@ describe.skipIf(!testDatabaseUrl)(
           await listSessions(pool, other, '2026-09-01', '2026-09-30'),
         ).toEqual([]);
         expect(await getSession(pool, other, session.id)).toBeNull();
-        expect(await cancelSession(pool, other, session.id, NOW)).toEqual({
+        expect(await deleteSession(pool, other, session.id, NOW)).toEqual({
           ok: false,
           reason: 'not_found',
         });
-        expect(await restoreSession(pool, other, session.id, NOW)).toEqual({
-          ok: false,
-          reason: 'not_found',
-        });
+        expect(await listGroupSessions(pool, other, group)).toEqual([]);
         expect(
           await moveSession(
             pool,
@@ -1261,7 +1414,7 @@ describe.skipIf(!testDatabaseUrl)(
         ).toEqual({ ok: false, reason: 'not_found' });
 
         // nothing happened to teacher A's data
-        expect(await dates(group, 'scheduled')).toEqual([
+        expect(await dates(group)).toEqual([
           '2026-09-07',
           '2026-09-14',
           '2026-09-21',

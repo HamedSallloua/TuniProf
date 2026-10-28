@@ -86,20 +86,6 @@ export function periodDays(startDate: string, endDate: string): number {
   return diffDays(startDate, endDate) + 1;
 }
 
-/**
- * The shortcut "Année scolaire en cours" (spec 5.2): 1 September to 30 June. From September
- * on it is the year that starts now, before that the one that began last September. The spec
- * gives no dates; these are my choice (docs/DECISIONS.md).
- */
-export function currentSchoolYear(today: string): {
-  start: string;
-  end: string;
-} {
-  const year = Number(today.slice(0, 4));
-  const startYear = Number(today.slice(5, 7)) >= 9 ? year : year - 1;
-  return { start: `${startYear}-09-01`, end: `${startYear + 1}-06-30` };
-}
-
 // ---------------------------------------------------------------------------- weekly rules
 
 export type RuleError =
@@ -181,6 +167,56 @@ export function summarizeRules(
     ]);
   }
   return [...days.entries()].map(([weekday, slots]) => ({ weekday, slots }));
+}
+
+// ------------------------------------------------------------------- days picked by hand
+
+/** At most this many sessions in one group when the days are picked by hand. */
+export const MAX_CUSTOM_SESSIONS = 1000;
+
+export type CustomSessionError =
+  | 'none' // nothing picked
+  | 'too_many'
+  | 'outside_period'
+  | 'time_format'
+  | 'end_before_start'
+  | 'overlap_same_day'
+  | 'too_many_per_day';
+
+/**
+ * The sessions of a group whose days were picked in a calendar (spec 5.2, owner request after
+ * M8): each one inside the period, ending after it starts, at most three a day, none
+ * overlapping another of the same day.
+ */
+export function validateCustomSessions(
+  sessions: SessionDraft[],
+  startDate: string,
+  endDate: string,
+): CustomSessionError | null {
+  if (sessions.length === 0) return 'none';
+  if (sessions.length > MAX_CUSTOM_SESSIONS) return 'too_many';
+  for (const session of sessions) {
+    if (
+      !isValidDate(session.date) ||
+      session.date < startDate ||
+      session.date > endDate
+    )
+      return 'outside_period';
+    if (!isValidTime(session.startTime) || !isValidTime(session.endTime))
+      return 'time_format';
+    if (timeToMinutes(session.endTime) <= timeToMinutes(session.startTime))
+      return 'end_before_start';
+  }
+  const byDate = new Map<string, SessionDraft[]>();
+  for (const session of sessions)
+    byDate.set(session.date, [...(byDate.get(session.date) ?? []), session]);
+  for (const sameDay of byDate.values()) {
+    if (sameDay.length > MAX_SLOTS_PER_DAY) return 'too_many_per_day';
+    for (let a = 0; a < sameDay.length; a++)
+      for (let b = a + 1; b < sameDay.length; b++)
+        if (overlaps(sameDay[a], sameDay[b])) return 'overlap_same_day';
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------- generation

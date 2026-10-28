@@ -8,6 +8,7 @@ import {
   isPast,
   isValidDate,
   isValidTime,
+  monthsBetween,
   startOfMonth,
   startOfWeek,
   tunisNow,
@@ -15,7 +16,6 @@ import {
 } from '@/lib/dashboard/dates';
 import {
   countByDate,
-  currentSchoolYear,
   endDateAfterWeeks,
   findConflicts,
   generateSessions,
@@ -23,6 +23,7 @@ import {
   overlaps,
   periodDays,
   summarizeRules,
+  validateCustomSessions,
   validateName,
   validatePeriod,
   validateRules,
@@ -142,24 +143,57 @@ describe('group name and period (spec 5.2)', () => {
     expect(periodDays('2026-09-07', '2026-09-07')).toBe(1);
   });
 
-  it('"Année scolaire en cours" is 1 September to 30 June', () => {
-    expect(currentSchoolYear('2026-10-28')).toEqual({
-      start: '2026-09-01',
-      end: '2027-06-30',
-    });
-    expect(currentSchoolYear('2026-09-01')).toEqual({
-      start: '2026-09-01',
-      end: '2027-06-30',
-    });
-    expect(currentSchoolYear('2027-03-15')).toEqual({
-      start: '2026-09-01',
-      end: '2027-06-30',
-    });
-    expect(currentSchoolYear('2027-08-31')).toEqual({
-      start: '2026-09-01',
-      end: '2027-06-30',
-    });
-    expect(validatePeriod('2026-09-01', '2027-06-30')).toBeNull();
+  it('lists the months of a period, for the calendar cards', () => {
+    expect(monthsBetween('2026-10-28', '2026-10-31')).toEqual(['2026-10']);
+    expect(monthsBetween('2026-11-20', '2027-02-02')).toEqual([
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+    ]);
+  });
+});
+
+describe('days picked by hand', () => {
+  const slot = (date: string, startTime = '08:00', endTime = '10:00') => ({
+    date,
+    startTime,
+    endTime,
+  });
+  const check = (sessions: ReturnType<typeof slot>[]) =>
+    validateCustomSessions(sessions, '2026-09-07', '2026-09-30');
+
+  it('accepts sessions inside the period, up to three a day, one after the other', () => {
+    expect(
+      check([
+        slot('2026-09-09'),
+        slot('2026-09-09', '10:00', '12:00'), // touching ends are fine
+        slot('2026-09-09', '14:00', '16:00'),
+        slot('2026-09-30'),
+      ]),
+    ).toBeNull();
+  });
+
+  it('refuses nothing picked, a date outside the period, bad times and overlaps', () => {
+    expect(check([])).toBe('none');
+    expect(check([slot('2026-09-06')])).toBe('outside_period');
+    expect(check([slot('2026-10-01')])).toBe('outside_period');
+    expect(check([slot('2026-02-30')])).toBe('outside_period');
+    expect(check([slot('2026-09-09', '8:00', '10:00')])).toBe('time_format');
+    expect(check([slot('2026-09-09', '10:00', '10:00')])).toBe(
+      'end_before_start',
+    );
+    expect(
+      check([slot('2026-09-09'), slot('2026-09-09', '09:00', '11:00')]),
+    ).toBe('overlap_same_day');
+    expect(
+      check([
+        slot('2026-09-09', '08:00', '09:00'),
+        slot('2026-09-09', '09:00', '10:00'),
+        slot('2026-09-09', '10:00', '11:00'),
+        slot('2026-09-09', '11:00', '12:00'),
+      ]),
+    ).toBe('too_many_per_day');
   });
 });
 

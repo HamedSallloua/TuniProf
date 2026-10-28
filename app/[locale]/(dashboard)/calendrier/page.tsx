@@ -45,6 +45,8 @@ export default async function CalendarPage({
     date?: string;
     groupe?: string;
     jour?: string;
+    /** A date typed in the search bar: the calendar opens on it, with its day open. */
+    chercher?: string;
     done?: string;
     error?: string;
   }>;
@@ -62,12 +64,13 @@ export default async function CalendarPage({
   const vue: CalendarView = VIEWS.includes(query.vue as CalendarView)
     ? (query.vue as CalendarView)
     : 'semaine';
-  const date = isValidDate(query.date) ? query.date : today;
+  const searched = isValidDate(query.chercher) ? query.chercher : undefined;
+  const date = searched ?? (isValidDate(query.date) ? query.date : today);
   const groups = await listGroups(pool, user.id);
   const groupId = groups.some((g) => g.id === query.groupe)
     ? query.groupe
     : undefined;
-  const jour = isValidDate(query.jour) ? query.jour : undefined;
+  const jour = searched ?? (isValidDate(query.jour) ? query.jour : undefined);
   const canWrite = access === 'full';
 
   const url = (patch: {
@@ -96,9 +99,7 @@ export default async function CalendarPage({
             }
           : null;
   const shown = range
-    ? (
-        await listSessions(pool, user.id, range.from, range.to, { groupId })
-      ).filter((s) => s.status === 'scheduled')
+    ? await listSessions(pool, user.id, range.from, range.to, { groupId })
     : [];
 
   const daySessions = jour ? await listSessions(pool, user.id, jour, jour) : [];
@@ -124,7 +125,7 @@ export default async function CalendarPage({
         : date.slice(0, 4);
 
   const flash = query.done
-    ? { text: td(`flash.${query.done}` as 'flash.cancelled'), error: false }
+    ? { text: td(`flash.${query.done}` as 'flash.deleted'), error: false }
     : query.error
       ? {
           text: td(`sessionErrors.${query.error}` as 'sessionErrors.invalid'),
@@ -248,6 +249,32 @@ export default async function CalendarPage({
           </button>
         </form>
       </div>
+
+      <form
+        method="get"
+        action={locale === 'ar' ? '/ar/calendrier' : '/calendrier'}
+        role="search"
+        className="flex flex-wrap items-end gap-2"
+      >
+        <input type="hidden" name="vue" value={vue} />
+        {groupId && <input type="hidden" name="groupe" value={groupId} />}
+        <div className="space-y-1">
+          <label htmlFor="date-search" className="block text-xs">
+            {t('search.label')}
+          </label>
+          <input
+            id="date-search"
+            type="date"
+            name="chercher"
+            required
+            defaultValue={searched ?? ''}
+            className={inputClass + ' !w-auto'}
+          />
+        </div>
+        <button type="submit" className={secondaryButtonClass}>
+          {t('search.button')}
+        </button>
+      </form>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2

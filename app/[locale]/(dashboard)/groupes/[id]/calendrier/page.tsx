@@ -7,6 +7,7 @@ import type { Locale } from '@/i18n/routing';
 import { requireDashboard } from '@/lib/dashboard/context';
 import { tunisNow } from '@/lib/dashboard/dates';
 import { getGroup } from '@/lib/dashboard/groups';
+import { listGroupSessions } from '@/lib/dashboard/sessions';
 import { getPool } from '@/lib/db/client';
 
 export const metadata: Metadata = { robots: { index: false } };
@@ -26,11 +27,19 @@ export default async function ChangeCalendarPage({
   if (access !== 'full')
     redirect({ href: `/groupes/${id}`, locale: locale as Locale });
 
+  const sessions = await listGroupSessions(getPool(), user.id, group.id);
+
   return (
     <ChangeCalendarForm
+      sessions={sessions.map((s) => ({
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }))}
       group={{
         id: group.id,
         name: group.name,
+        color: group.color,
         startDate: group.startDate,
         endDate: group.endDate,
         rules: group.rules,

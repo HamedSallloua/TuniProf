@@ -1,22 +1,28 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
+import {
+  buttonClass,
+  inputClass,
+  secondaryButtonClass,
+} from '@/components/auth/styles';
 import { DeleteGroup } from '@/components/dashboard/DeleteGroup';
+import { GroupCalendarPreview } from '@/components/dashboard/GroupCalendarPreview';
 import { SessionActions } from '@/components/dashboard/SessionActions';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requireDashboard } from '@/lib/dashboard/context';
 import {
   addMonths,
-  endOfMonth,
+  isValidDate,
   monthOf,
-  startOfMonth,
+  monthsBetween,
   tunisNow,
 } from '@/lib/dashboard/dates';
 import { formatDay, monthTitle, scheduleText } from '@/lib/dashboard/format';
 import { getGroup } from '@/lib/dashboard/groups';
-import { listSessions } from '@/lib/dashboard/sessions';
+import { countByDate } from '@/lib/dashboard/schedule';
+import { listGroupSessions } from '@/lib/dashboard/sessions';
 import { getPool } from '@/lib/db/client';
 import { formatMillimes } from '@/lib/money';
 
@@ -29,7 +35,12 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ mois?: string; done?: string; error?: string }>;
+  searchParams: Promise<{
+    mois?: string;
+    chercher?: string;
+    done?: string;
+    error?: string;
+  }>;
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale as Locale);
@@ -54,16 +65,29 @@ export default async function GroupPage({
         ? group.endDate
         : today,
   );
-  const month =
-    query.mois && MONTH.test(query.mois) ? query.mois : defaultMonth;
+  // A date typed in the search bar opens that date's month and marks its sessions.
+  const searched = isValidDate(query.chercher) ? query.chercher : undefined;
+  const month = searched
+    ? monthOf(searched)
+    : query.mois && MONTH.test(query.mois)
+      ? query.mois
+      : defaultMonth;
 
-  const sessions = await listSessions(
-    getPool(),
-    user.id,
-    startOfMonth(`${month}-01`),
-    endOfMonth(`${month}-01`),
-    { groupId: group.id },
+  const allSessions = await listGroupSessions(getPool(), user.id, group.id);
+  const sessions = allSessions.filter((s) => s.date.startsWith(month));
+  const found = searched
+    ? allSessions.filter((s) => s.date === searched).length
+    : 0;
+  const counts = Object.fromEntries(countByDate(allSessions));
+  const previewMonths = monthsBetween(
+    [group.startDate, allSessions[0]?.date].filter(Boolean).sort()[0] as string,
+    [group.endDate, allSessions.at(-1)?.date]
+      .filter(Boolean)
+      .sort()
+      .at(-1) as string,
   );
+  const tp = await getTranslations('groups.preview');
+  const tcal = await getTranslations('calendar');
   const canWrite = access === 'full';
   const here = `/groupes/${group.id}?mois=${month}`;
 
@@ -71,7 +95,7 @@ export default async function GroupPage({
   const next = monthOf(addMonths(`${month}-01`, 1));
 
   const flash = query.done
-    ? { text: td(`flash.${query.done}` as 'flash.cancelled'), error: false }
+    ? { text: td(`flash.${query.done}` as 'flash.deleted'), error: false }
     : query.error
       ? {
           text: td(`sessionErrors.${query.error}` as 'sessionErrors.invalid'),
@@ -108,7 +132,11 @@ export default async function GroupPage({
         </dd>
         <dt className="font-medium">{t('schedule')}</dt>
         <dd>
-          <bdi>{scheduleText(group.rules, locale)}</bdi>
+          {group.rules.length === 0 ? (
+            t('manualSchedule')
+          ) : (
+            <bdi>{scheduleText(group.rules, locale)}</bdi>
+          )}
         </dd>
         <dt className="font-medium">{t('price')}</dt>
         <dd>
@@ -173,6 +201,56 @@ export default async function GroupPage({
           </nav>
         </div>
 
+        <form
+          method="get"
+          action={`${locale === 'ar' ? '/ar' : ''}/groupes/${group.id}`}
+          role="search"
+          className="flex flex-wrap items-end gap-2"
+        >
+          <div className="space-y-1">
+            <label htmlFor="date-search" className="block text-xs">
+              {t('search.label')}
+            </label>
+            <input
+              id="date-search"
+              type="date"
+              name="chercher"
+              required
+              defaultValue={searched ?? ''}
+              className={inputClass + ' !w-auto'}
+            />
+          </div>
+          <button type="submit" className={secondaryButtonClass}>
+            {t('search.button')}
+          </button>
+          {searched && (
+            <Link
+              href={`/groupes/${group.id}`}
+              className={secondaryButtonClass}
+            >
+              {t('search.clear')}
+            </Link>
+          )}
+        </form>
+        {searched && (
+          <p
+            role="status"
+            className={
+              'text-sm ' +
+              (found === 0 ? 'text-muted' : 'font-medium text-primary')
+            }
+          >
+            {found === 0
+              ? t('search.none', {
+                  date: formatDay(searched, locale, { dateStyle: 'full' }),
+                })
+              : t('search.found', {
+                  count: found,
+                  date: formatDay(searched, locale, { dateStyle: 'full' }),
+                })}
+          </p>
+        )}
+
         {flash && (
           <p
             role={flash.error ? 'alert' : 'status'}
@@ -198,7 +276,7 @@ export default async function GroupPage({
                 key={session.id}
                 className={
                   'flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface p-3 ' +
-                  (session.status === 'cancelled' ? 'opacity-60' : '')
+                  (session.date === searched ? 'ring-2 ring-primary' : '')
                 }
               >
                 <div>
@@ -213,7 +291,6 @@ export default async function GroupPage({
                     <bdi dir="ltr">
                       {session.startTime}-{session.endTime}
                     </bdi>
-                    {session.status === 'cancelled' && ` · ${tr('cancelled')}`}
                     {session.origin === 'moved' && ` · ${tr('moved')}`}
                     {session.origin === 'extra' && ` · ${tr('extra')}`}
                   </p>
@@ -228,6 +305,26 @@ export default async function GroupPage({
             ))}
           </ul>
         )}
+      </section>
+
+      <section aria-labelledby="preview" className="space-y-3">
+        <div>
+          <h2 id="preview" className="text-lg font-semibold text-primary">
+            {tp('title')}
+          </h2>
+          <p className="text-sm text-muted">{tp('hint')}</p>
+        </div>
+        <GroupCalendarPreview
+          months={previewMonths}
+          counts={counts}
+          color={group.color}
+          locale={locale}
+          today={today}
+          labels={{
+            sessions: (count) => tcal('sessionsCount', { count }),
+            legendSessions: tp('legend'),
+          }}
+        />
       </section>
     </div>
   );

@@ -137,3 +137,15 @@ export function isPast(
   if (session.date !== today.date) return session.date < today.date;
   return timeToMinutes(shortTime(session.endTime)) <= timeToMinutes(today.time);
 }
+
+/** Every month from the one of `from` to the one of `to`, as "2026-09": the cards of a preview. */
+export function monthsBetween(from: string, to: string): string[] {
+  const months: string[] = [];
+  for (
+    let month = monthOf(from);
+    month <= monthOf(to);
+    month = monthOf(addMonths(startOfMonth(`${month}-01`), 1))
+  )
+    months.push(month);
+  return months;
+}

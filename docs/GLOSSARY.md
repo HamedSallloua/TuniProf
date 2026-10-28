@@ -122,18 +122,24 @@ All the message texts are in `messages/ar.json` under `notifications.kinds`. Ter
 
 All the texts are in `messages/ar.json` under `dashboard`, `groups` and `calendar`. Terms used:
 
-| French                        | Arabic (draft)          |
-| ----------------------------- | ----------------------- |
-| Groupes                       | المجموعات               |
-| Calendrier                    | التقويم                 |
-| Semaine / Mois / Année        | الأسبوع / الشهر / السنة |
-| Prochaines séances            | الحصص القادمة           |
-| Ajouter une séance            | إضافة حصة               |
-| Modifier la date              | تعديل التاريخ           |
-| Modifier calendrier           | تعديل التقويم           |
-| Choisir le nombre de semaines | اختيار عدد الأسابيع     |
-| Nombre de semaines            | عدد الأسابيع            |
-| Supprimer (séance)            | حذف                     |
-| Groupe vide                   | مجموعة فارغة            |
-| Passée / Supprimée            | منتهية / محذوفة         |
-| Déplacée / Ajoutée            | منقولة / مضافة          |
+| French                               | Arabic (draft)          |
+| ------------------------------------ | ----------------------- |
+| Groupes                              | المجموعات               |
+| Calendrier                           | التقويم                 |
+| Semaine / Mois / Année               | الأسبوع / الشهر / السنة |
+| Prochaines séances                   | الحصص القادمة           |
+| Ajouter une séance                   | إضافة حصة               |
+| Modifier la date                     | تعديل التاريخ           |
+| Modifier calendrier                  | تعديل التقويم           |
+| Choisir le nombre de semaines        | اختيار عدد الأسابيع     |
+| Nombre de semaines                   | عدد الأسابيع            |
+| Supprimer (séance)                   | حذف                     |
+| Groupe vide                          | مجموعة فارغة            |
+| Passée                               | منتهية                  |
+| Rechercher une date                  | البحث عن تاريخ          |
+| Aperçu du calendrier                 | معاينة التقويم          |
+| Choix des jours                      | طريقة اختيار الأيام     |
+| Par jours de la semaine              | حسب أيام الأسبوع        |
+| Choisir les jours dans un calendrier | باختيار الأيام من تقويم |
+| Liste des séances                    | قائمة الحصص             |
+| Déplacée / Ajoutée                   | منقولة / مضافة          |

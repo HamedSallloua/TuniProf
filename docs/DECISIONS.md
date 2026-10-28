@@ -2,6 +2,15 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-28 (M8, second round of changes asked by the owner)
+
+- **The "Année scolaire en cours" shortcut is removed** (and with it the 1 September to 30 June choice, so that decision below no longer applies). The period is the start date plus an end date or a number of weeks.
+- **"Supprimer" a session deletes it for good**; there is no "Restaurer". This differs from spec 5.3 (cancel + restore): the owner's ruling wins. Migration 0018 deletes the sessions that were only cancelled (already invisible), drops `sessions.status` and recreates the overlap constraint without the `WHERE status = 'scheduled'` part. The "Supprimer" button asks for a confirmation in the browser because nothing can bring the session back. A past session still cannot be deleted.
+- **Consequence to confirm:** the old rule "a cancelled session does not come back by itself" is gone. If the teacher deletes a Monday one by one and later runs "Modifier calendrier" with a pattern that includes Mondays, that Monday is created again (the screen shows it as an added day in the preview before saving). The alternative would be to remember deleted dates in a separate table, which I did not build because you asked for a permanent deletion. Sessions moved one by one are still kept unless "reset" is ticked.
+- **Days picked in a calendar**: in the period step the teacher chooses between "Par jours de la semaine" (the weekly pattern, as before) and "En choisissant les jours dans un calendrier". In the second case step 3 is the list of picked sessions (1 to 3 per day, start and end per session, a "same times for all days" helper) with the calendar and the conflicts under it. Rules: every picked day inside the period and not before today, at most 3 sessions a day, none overlapping, at most 1000 sessions. Such a group has no weekly pattern, so its sessions get the new origin `manual` (not `extra`, which means "Ajouter une séance" and shows the label "Ajoutée"). "Modifier calendrier" never touches `manual` sessions; a pattern added there is created next to them, and the page explains that a hand-picked group is changed one session at a time. The server checks all of this again (reason `invalid_sessions`).
+- **Date search**: in the calendar the search bar takes a date and opens the calendar on it with the day overlay open (address `?chercher=`, any view and group filter are kept). In a group it opens that date's month, marks the sessions of that day and says how many there are (or that there is none). It is a date field (no free text), so it behaves the same in French and Arabic.
+- **"Aperçu du calendrier"** of a group: one card per month from the group's start to its end (or further if a session was moved outside), days with a session of the group filled with the group's colour, and the number of sessions when there are two or more. On "Modifier calendrier" it first shows the group as it is; after "Voir ce qui va changer" it also marks the real differences (a session removed and created again identically is not drawn as a change).
+
 ## 2026-10-28 (M8, changes asked by the owner after review)
 
 - **Archiving groups is removed** (owner's request: "not needed anymore"). This differs from spec 5.5, which lists "Archiver" and "Restaurer": the owner's ruling wins. Migration 0017 drops `groups.status` and makes the group name unique among ALL of a teacher's groups. The migration was written as a new file because 0016 had been applied on the development database; it stops with an error (and deletes nothing) if two groups of one teacher share a name. This replaces the "archived groups keep blocking slots" decision below, which no longer applies. The delete dialog no longer recommends archiving.
@@ -20,11 +29,11 @@ AGENT_CONTEXT and the spec agree on M8. Choices not fixed by the spec (see PRE_P
 - **The database refuses overlaps**: exclusion constraint `no_teacher_overlap` (btree_gist) on the teacher and the time range of scheduled sessions. Touching sessions (one ends at 10:00, the next starts at 10:00) are allowed. The application also checks first, only to list the conflicts nicely; the constraint is the guarantee.
 - **All writes of a teacher take a lock** (transaction advisory lock on the teacher), so two browser tabs cannot both pass the check. Alternative rejected: relying on the constraint error alone (works, but the message would be less useful).
 - ~~An archived group keeps its future sessions in conflicts~~: no longer applies, archiving was removed (see the changes above).
-- **A cancelled session frees its slot** (spec 5.3), so the constraint covers `scheduled` sessions only.
+- ~~A cancelled session frees its slot~~: no longer applies, sessions are deleted for good (see the second round of changes); the constraint covers every session.
 
 **Groups**
 
-- **Suggested period = school year**, 1 September to 30 June (my choice; the spec only fixes the 14-month maximum, which is also a database check).
+- ~~Suggested period = school year~~: removed (see the second round of changes). The spec only fixes the 14-month maximum, which is also a database check.
 - **Group names are unique among a teacher's groups**, ignoring case and spaces (unique index; it covered only active groups until archiving was removed).
 - **Colour:** one of 10 colours picked automatically (the first one not used by an active group), changeable at creation.
 - **Delete = typed name** of the group, with a warning that sessions go too. The revenue warning of spec 5.5 waits for M10 (no billing data yet).
@@ -35,7 +44,7 @@ AGENT_CONTEXT and the spec agree on M8. Choices not fixed by the spec (see PRE_P
 
 - **Past sessions are locked in the application** (end time passed in Tunisia time), not in the database, so an admin can still correct data with SQL.
 - **"Modifier date" keeps the first original date** if a session is moved twice, and a session cannot be moved onto itself.
-- **"Modifier calendrier"** rebuilds only sessions from the chosen date. Sessions the teacher moved or cancelled are kept unless "reset" is ticked; added (extra) sessions are always kept. A date generated by the pattern that falls on a cancelled or moved-from date is skipped, so a cancelled session does not come back by itself. It can be run as a dry run that only lists the conflicts.
+- **"Modifier calendrier"** rebuilds only sessions from the chosen date. Sessions the teacher moved are kept unless "reset" is ticked; added (extra) and hand-picked sessions are always kept. A date generated by the pattern that falls on a moved-from date is skipped. (Cancelled sessions no longer exist: see the second round of changes.) It can be run as a dry run that only lists the conflicts.
 - **Access:** during the plan everything; read-only for 30 days after it ends (every action refused on the server); then redirect to the subscription page.
 
 **Screens**

@@ -11,7 +11,7 @@ import { SessionActions } from './SessionActions';
 /**
  * The day overlay (spec 5.4), opened by a day of the calendar: the hourly timeline of every
  * group that day, then one row per session with "Supprimer" and "Modifier date", and
- * "Ajouter une séance" at the bottom. Cancelled sessions are greyed with "Restaurer".
+ * "Ajouter une séance" at the bottom.
  */
 export async function DayOverlay({
   date,
@@ -64,17 +64,13 @@ export async function DayOverlay({
                 startTime: s.startTime,
                 endTime: s.endTime,
                 color: s.groupColor,
-                muted: s.status === 'cancelled',
               }))}
             />
             <ul className="space-y-2">
               {sessions.map((session) => (
                 <li
                   key={session.id}
-                  className={
-                    'flex flex-wrap items-center justify-between gap-2 rounded-md border border-s-4 border-border p-3 ' +
-                    (session.status === 'cancelled' ? 'opacity-60' : '')
-                  }
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-s-4 border-border p-3"
                   style={{ borderInlineStartColor: session.groupColor }}
                 >
                   <div className="min-w-0">
@@ -90,13 +86,9 @@ export async function DayOverlay({
                       <bdi dir="ltr">
                         {session.startTime}-{session.endTime}
                       </bdi>
-                      {session.status === 'cancelled' &&
-                        ` · ${tr('cancelled')}`}
                       {session.origin === 'moved' && ` · ${tr('moved')}`}
                       {session.origin === 'extra' && ` · ${tr('extra')}`}
-                      {isPast(session, now) &&
-                        session.status === 'scheduled' &&
-                        ` · ${tr('locked')}`}
+                      {isPast(session, now) && ` · ${tr('locked')}`}
                     </p>
                   </div>
                   <SessionActions

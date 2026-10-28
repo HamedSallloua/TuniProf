@@ -18,15 +18,13 @@ import {
   type SessionRow,
 } from './store';
 
-// One session at a time (spec 5.3): "Supprimer", "Restaurer", "Modifier date", "Ajouter une
-// séance". Past sessions are locked. Every function takes the teacher's id.
+// One session at a time (spec 5.3): "Supprimer", "Modifier date", "Ajouter une séance". Past sessions are locked. Every function takes the teacher's id.
 
 export type { SessionRow } from './store';
 
 export type SessionFailure =
   | 'not_found'
   | 'past' // a session that is over cannot be changed (history integrity)
-  | 'not_scheduled' // cancelled already (or, for restore, not cancelled)
   | 'invalid' // bad date or time
   | 'unchanged'
   | 'new_slot_in_past'
@@ -44,10 +42,7 @@ export type SessionResult =
 
 // --------------------------------------------------------------------------------- reading
 
-/**
- * The sessions of the calendar between two dates, newest group data included. Cancelled sessions are
- * returned too (the day overlay shows them greyed with "Restaurer"); callers filter.
- */
+/** The sessions of the calendar between two dates, with their group's name and colour. */
 export async function listSessions(
   db: Queryable,
   teacherId: string,
@@ -63,6 +58,22 @@ export async function listSessions(
         AND ($4::uuid IS NULL OR s.group_id = $4)
       ORDER BY s.date, s.start_time, s.id`,
     [teacherId, from, to, options.groupId ?? null],
+  );
+  return rows.map(toSessionRow);
+}
+
+/** Every session of one group, whatever its date (for the group's calendar preview). */
+export async function listGroupSessions(
+  db: Queryable,
+  teacherId: string,
+  groupId: string,
+): Promise<SessionRow[]> {
+  const { rows } = await db.query(
+    `SELECT ${SESSION_COLUMNS}
+       FROM sessions s JOIN groups g ON g.id = s.group_id
+      WHERE s.teacher_id = $1 AND s.group_id = $2
+      ORDER BY s.date, s.start_time, s.id`,
+    [teacherId, groupId],
   );
   return rows.map(toSessionRow);
 }
@@ -96,7 +107,6 @@ export async function upcomingSessions(
   );
   return rows.filter(
     (row) =>
-      row.status === 'scheduled' &&
       !(
         row.date === today.date &&
         timeToMinutes(row.endTime) <= timeToMinutes(today.time)
@@ -120,8 +130,11 @@ async function loadForUpdate(
   return rows[0] ? toSessionRow(rows[0]) : null;
 }
 
-/** "Supprimer": this one occurrence is cancelled; the other dates are not touched. */
-export async function cancelSession(
+/**
+ * "Supprimer": this one occurrence is deleted for good (there is no "Restaurer"); the other
+ * dates are not touched. A session that is over cannot be deleted.
+ */
+export async function deleteSession(
   pool: Pool,
   teacherId: string,
   sessionId: string,
@@ -131,52 +144,9 @@ export async function cancelSession(
     const session = await loadForUpdate(client, teacherId, sessionId);
     if (!session) return { ok: false, reason: 'not_found' } as const;
     if (isPast(session, now)) return { ok: false, reason: 'past' } as const;
-    if (session.status !== 'scheduled')
-      return { ok: false, reason: 'not_scheduled' } as const;
-    await client.query(
-      `UPDATE sessions SET status = 'cancelled' WHERE id = $1`,
-      [sessionId],
-    );
+    await client.query(`DELETE FROM sessions WHERE id = $1`, [sessionId]);
     return { ok: true } as const;
   });
-}
-
-/** "Restaurer": the cancelled occurrence comes back, if its slot is still free. */
-export async function restoreSession(
-  pool: Pool,
-  teacherId: string,
-  sessionId: string,
-  now: Date = new Date(),
-): Promise<SessionResult> {
-  try {
-    return await withTeacherLock(pool, teacherId, async (client) => {
-      const session = await loadForUpdate(client, teacherId, sessionId);
-      if (!session) return { ok: false, reason: 'not_found' } as const;
-      if (isPast(session, now)) return { ok: false, reason: 'past' } as const;
-      if (session.status !== 'cancelled')
-        return { ok: false, reason: 'not_scheduled' } as const;
-
-      const conflicts = await overlapping(
-        client,
-        teacherId,
-        session.date,
-        session.startTime,
-        session.endTime,
-        session.id,
-      );
-      if (conflicts.length > 0)
-        return { ok: false, reason: 'conflict', conflicts } as const;
-      await client.query(
-        `UPDATE sessions SET status = 'scheduled' WHERE id = $1`,
-        [sessionId],
-      );
-      return { ok: true } as const;
-    });
-  } catch (error) {
-    if ((error as { code?: string }).code === EXCLUSION_VIOLATION)
-      return { ok: false, reason: 'conflict', conflicts: [] };
-    throw error;
-  }
 }
 
 export type SlotInput = { date: string; startTime: string; endTime: string };
@@ -230,8 +200,6 @@ export async function moveSession(
       const session = await loadForUpdate(client, teacherId, sessionId);
       if (!session) return { ok: false, reason: 'not_found' } as const;
       if (isPast(session, now)) return { ok: false, reason: 'past' } as const;
-      if (session.status !== 'scheduled')
-        return { ok: false, reason: 'not_scheduled' } as const;
       if (
         session.date === slot.date &&
         session.startTime === slot.startTime &&

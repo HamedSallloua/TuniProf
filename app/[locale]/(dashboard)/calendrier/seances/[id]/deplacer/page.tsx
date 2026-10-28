@@ -27,11 +27,7 @@ export default async function MoveSessionPage({
   const session = await getSession(getPool(), user.id, id);
   if (!session) notFound();
   // Only a session that is still to come, in a fully active Dashboard.
-  if (
-    access !== 'full' ||
-    session.status !== 'scheduled' ||
-    isPast(session, now)
-  )
+  if (access !== 'full' || isPast(session, now))
     redirect({ href: returnTo, locale: locale as Locale });
 
   return (

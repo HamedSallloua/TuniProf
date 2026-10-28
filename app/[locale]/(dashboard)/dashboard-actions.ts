@@ -18,9 +18,8 @@ import {
 import type { ExistingSession } from '@/lib/dashboard/schedule';
 import {
   addSession,
-  cancelSession,
+  deleteSession,
   moveSession,
-  restoreSession,
   type SessionResult,
 } from '@/lib/dashboard/sessions';
 import { loadScheduledSessions } from '@/lib/dashboard/store';
@@ -85,6 +84,11 @@ const groupSchema = z.object({
   startDate: date,
   endDate: date,
   rules: z.array(rule).max(21),
+  // Days picked by hand in a calendar (then `rules` is empty).
+  customSessions: z
+    .array(z.object({ date, startTime: time, endTime: time }))
+    .max(1000)
+    .optional(),
   pricingModel: z.enum(['per_session', 'per_month']),
   referencePriceMillimes: z.number().int().nullable(),
 });
@@ -164,31 +168,17 @@ async function backWith(
   return redirect({ href: `${url.pathname}${url.search}`, locale });
 }
 
-export async function cancelSessionAction(formData: FormData): Promise<void> {
+export async function deleteSessionAction(formData: FormData): Promise<void> {
   const who = await writableTeacher();
   const id = uuid.safeParse(text(formData, 'sessionId'));
   if (!who.ok || !id.success)
     return backWith(formData, '/calendrier', 'error', 'invalid');
-  const result = await cancelSession(getPool(), who.user.id, id.data);
+  const result = await deleteSession(getPool(), who.user.id, id.data);
   return backWith(
     formData,
     '/calendrier',
     result.ok ? 'done' : 'error',
-    result.ok ? 'cancelled' : result.reason,
-  );
-}
-
-export async function restoreSessionAction(formData: FormData): Promise<void> {
-  const who = await writableTeacher();
-  const id = uuid.safeParse(text(formData, 'sessionId'));
-  if (!who.ok || !id.success)
-    return backWith(formData, '/calendrier', 'error', 'invalid');
-  const result = await restoreSession(getPool(), who.user.id, id.data);
-  return backWith(
-    formData,
-    '/calendrier',
-    result.ok ? 'done' : 'error',
-    result.ok ? 'restored' : result.reason,
+    result.ok ? 'deleted' : result.reason,
   );
 }
 
