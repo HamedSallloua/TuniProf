@@ -30,6 +30,7 @@ AGENT_CONTEXT and the spec agree on M6. Choices not fixed by the spec (to confir
 - **Forms are sent by hand** (`onSubmit` + `startTransition`) for the review, reply and report forms, like the profile form of M3, so a refusal does not empty them.
 - **The public profile page shows the 20 latest published reviews**; "see more" is a later improvement.
 - **Teacher navigation:** a "Mes avis" button on the teacher home, only for approved profiles.
+- **Admins see no review box** on a profile (they neither write nor need to be told they cannot); a teacher is told that teacher accounts cannot review.
 
 ## 2026-10-27 (owner approvals, after M5)
 

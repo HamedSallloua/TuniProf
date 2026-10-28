@@ -40,34 +40,37 @@ export async function ReviewSection({
         <p className="text-muted">{noReviewsLabel}</p>
       )}
 
-      <div className="rounded-card border border-border bg-surface p-4">
-        <h3 className="font-semibold text-primary">{t('writeTitle')}</h3>
-        <div className="mt-3">
-          {!user && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted">{t('signInPrompt')}</p>
-              <Link
-                href={{
-                  pathname: '/connexion-avis',
-                  query: { retour: `/prof/${slug}` },
-                }}
-                className={buttonClass}
-              >
-                {t('signInCta')}
-              </Link>
-            </div>
-          )}
-          {user && !canReview && user.role === 'teacher' && (
-            <p className="text-sm text-muted">{t('teacherNote')}</p>
-          )}
-          {canReview && own && (
-            <p role="status" className="font-medium text-primary">
-              {t(`status.${own.status}`)}
-            </p>
-          )}
-          {canReview && !own && <ReviewForm slug={slug} />}
+      {/* Admins neither write nor are told they cannot: the box would be empty. */}
+      {(!user || canReview || user.role === 'teacher') && (
+        <div className="rounded-card border border-border bg-surface p-4">
+          <h3 className="font-semibold text-primary">{t('writeTitle')}</h3>
+          <div className="mt-3">
+            {!user && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted">{t('signInPrompt')}</p>
+                <Link
+                  href={{
+                    pathname: '/connexion-avis',
+                    query: { retour: `/prof/${slug}` },
+                  }}
+                  className={buttonClass}
+                >
+                  {t('signInCta')}
+                </Link>
+              </div>
+            )}
+            {user && !canReview && user.role === 'teacher' && (
+              <p className="text-sm text-muted">{t('teacherNote')}</p>
+            )}
+            {canReview && own && (
+              <p role="status" className="font-medium text-primary">
+                {t(`status.${own.status}`)}
+              </p>
+            )}
+            {canReview && !own && <ReviewForm slug={slug} />}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

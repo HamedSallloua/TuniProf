@@ -1,4 +1,4 @@
-## Status: M6 done locally (not pushed; the teacher and admin review screens are not yet seen in a browser), waiting for the owner's review and "go" for M7 (updated 2026-10-28)
+## Status: M6 done locally (not pushed), waiting for the owner's review and "go" for M7 (updated 2026-10-28)
 
 Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
@@ -10,7 +10,7 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 - [x] M3 Teacher profile and review queue (2026-10-26). Pushed, CI green.
 - [x] M4 Entitlements, payment requests, activation codes, founding offer (2026-10-27). Pushed.
 - [x] M5 Public marketplace (2026-10-27). Pushed. Checked in a browser with the sample teachers.
-- [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests; the reviewer side was checked in a browser; the teacher page and the admin page were NOT (they need a teacher and an admin account).
+- [x] M6 Reviews (2026-10-28). Local commits, not pushed. Rules and data covered by tests, and every screen checked in a browser (reviewer, teacher and admin sides).
 
 ### M6 details
 
@@ -26,8 +26,12 @@ Everything that must happen before production is collected in `docs/PRE_PRODUCTI
 
 - `npm test`: **558 passed, 0 skipped** (30 files), after `npm run db:reset:test`. New: 27 database tests (including acceptance test 15: a second review of the same teacher by the same account is refused, also after a refusal; the 4th review in a day is refused by the application and by the database, allowed 24 hours later; a teacher or admin cannot review; the teacher's own number cannot sign in as a reviewer), and 4 pure tests (return address, content rules).
 - `npm run lint`, `typecheck`, `format:check`, `build`: pass.
-- Checked by hand in the browser (dev stub, sample teachers): from a profile, "Confirmer mon numéro" opens the reviewer sign-in with the return address, the WhatsApp check (simulated) comes back to the same profile, the header shows "Déconnexion"; sending without a rating is refused and the typed comment is kept; choosing 4 stars fills 4 stars; the review is sent ("sera publié après vérification") and the page then shows "Votre avis a été reçu" instead of the form, in French and in Arabic (right to left); a reviewer opening `/admin/avis` or `/espace-professeur/avis` is sent to the home page; the language switcher keeps the return address.
-- **Not checked in a browser:** a published review with its reply on the profile page, `/espace-professeur/avis` and `/admin/avis` (publishing, hiding, replying, reporting). They need an admin account (`npm run admin:create -- --role=admin_support`, you choose the password) and a teacher account; the database tests cover the logic. The test review (reviewer +216 29 999 900, 4 stars, waiting) is in your development database; `npm run dev:sample-teachers -- --remove` deletes it with the sample teachers.
+- Checked by hand in the browser (dev stub, sample teachers, a test admin and a test teacher account made by the owner):
+  - Reviewer side: from a profile, "Confirmer mon numéro" opens the reviewer sign-in with the return address, the (simulated) WhatsApp check comes back to the same profile, the header shows "Déconnexion"; sending without a rating is refused and the typed comment is kept; 4 stars fill 4 stars; after sending, the page shows "Votre avis a été reçu" instead of the form, in French and in Arabic (right to left); a reviewer opening `/admin/avis` or `/espace-professeur/avis` is sent to the home page.
+  - Admin: the home shows "Avis à modérer (1)"; `/admin/avis` lists the new review with the teacher, the reviewer's number and Publier / Refuser; publishing makes the review appear on the profile, sets the rating (4.0 (1), replacing the sample's fake 4.5) and adds `aggregateRating` to the search-engine data; "Masquer" removes the review, the rating and `aggregateRating` from the public page; "Rétablir" brings them back; the Arabic page is right to left with no horizontal overflow.
+  - Teacher: the teacher home has a "Mes avis" button; `/espace-professeur/avis` lists the published review; an empty reply is refused; a real reply is published (shown on the profile as "Réponse du professeur") and the reply form disappears; reporting with "Autre" and no note is refused and keeps the chosen reason; reporting with "Faux avis" works and the report reaches the admin's "Avis signalés" list with the reason. A teacher looking at a profile sees "Les comptes professeur ne peuvent pas laisser d'avis".
+  - Bug found and fixed: an admin looking at a profile saw an empty "Laisser un avis" box (now hidden for admins).
+- Not checked in a browser: "Garder (rejeter le signalement)" and "Refuser" (covered by the database tests only). Test data left in your development database: the test reviewer (+216 29 999 900) and its 2 reviews, one on a sample teacher and one on your test teacher; `npm run dev:sample-teachers -- --remove` deletes this reviewer, which deletes both reviews and puts the ratings back to 0.
 
 ### M5 details
 
