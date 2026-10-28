@@ -9,6 +9,7 @@ import { getPool } from '@/lib/db/client';
 import { formatNationalPhone } from '@/lib/phone';
 import { listPaymentRequests } from '@/lib/billing/payments';
 import { listReviewQueue } from '@/lib/profile/review';
+import { countPendingWhatsApp } from '@/lib/notifications/deliver';
 import { listModerationQueue } from '@/lib/reviews/moderation';
 import { logoutAction } from '../../(account)/actions';
 
@@ -27,8 +28,10 @@ export default async function AdminPage({
   const ta = await getTranslations('admin');
   const tp = await getTranslations('adminPayments');
   const tr = await getTranslations('adminReviews');
+  const tn = await getTranslations('adminNotifications');
   const waiting = (await listReviewQueue(getPool())).length;
   const openPayments = (await listPaymentRequests(getPool(), 'open')).length;
+  const whatsAppToSend = await countPendingWhatsApp(getPool());
   const reviewQueue = await listModerationQueue(getPool());
   const reviewsToDo = reviewQueue.pending.length + reviewQueue.reported.length;
 
@@ -59,6 +62,9 @@ export default async function AdminPage({
         </Link>
         <Link href="/admin/avis" className={buttonClass}>
           {tr('link')} ({reviewsToDo})
+        </Link>
+        <Link href="/admin/messages" className={buttonClass}>
+          {tn('link')} ({whatsAppToSend})
         </Link>
       </p>
 

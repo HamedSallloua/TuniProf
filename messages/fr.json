@@ -868,5 +868,88 @@
       "not_found": "Avis introuvable.",
       "forbidden": "Action non autorisée."
     }
+  },
+  "notifications": {
+    "greeting": "Bonjour {name},",
+    "greetingNoName": "Bonjour,",
+    "signoff": "L'équipe {brand}",
+    "kinds": {
+      "profile_approved": {
+        "title": "Votre profil est approuvé",
+        "body": "Votre profil a été approuvé par notre équipe. Il est visible des parents tant que votre abonnement est actif : consultez la rubrique « Mon abonnement » de votre espace professeur."
+      },
+      "profile_rejected": {
+        "title": "Votre profil a été refusé",
+        "body": "Motif : {detail}. Vous pouvez corriger votre profil dans votre espace professeur et le renvoyer pour vérification."
+      },
+      "version_approved": {
+        "title": "Vos modifications sont en ligne",
+        "body": "Les modifications de votre profil (nom, photo, présentation ou diplôme) ont été approuvées et sont maintenant visibles."
+      },
+      "version_rejected": {
+        "title": "Vos modifications ont été refusées",
+        "body": "Motif : {detail}. Votre profil reste affiché avec la version précédente."
+      },
+      "payment_proof_received": {
+        "title": "Preuve de paiement reçue",
+        "body": "Nous avons bien reçu votre preuve de paiement (référence {reference}). Nous la vérifions, puis nous vous envoyons votre code d'activation."
+      },
+      "code_issued": {
+        "title": "Votre code d'activation est prêt",
+        "body": "Votre paiement (référence {reference}) est vérifié. Votre code d'activation est disponible dans la rubrique « Mon abonnement » de votre espace professeur : saisissez-le pour démarrer votre abonnement."
+      },
+      "payment_refused": {
+        "title": "Paiement non validé",
+        "body": "Nous n'avons pas pu valider votre demande de paiement (référence {reference}). Contactez-nous pour en savoir plus."
+      },
+      "plan_expiring": {
+        "title": "Votre abonnement se termine bientôt",
+        "body": "{days, plural, one {Votre abonnement se termine demain} other {Votre abonnement se termine dans # jours}}, le {date}. Renouvelez-le dans la rubrique « Mon abonnement » pour que votre profil reste visible : les jours restants sont conservés."
+      },
+      "plan_expired": {
+        "title": "Votre abonnement est terminé",
+        "body": "Votre abonnement s'est terminé le {date} et votre profil n'est plus visible. Renouvelez-le dans la rubrique « Mon abonnement » pour le rendre à nouveau visible."
+      },
+      "grace_ending": {
+        "title": "Fin de l'accès à votre Dashboard",
+        "body": "Votre Dashboard est en lecture seule jusqu'au {date}. Exportez vos données avant cette date, puis renouvelez votre abonnement pour continuer à l'utiliser."
+      },
+      "review_published": {
+        "title": "Nouvel avis sur votre profil",
+        "body": "Un nouvel avis ({rating} sur 5) est publié sur votre profil. Vous pouvez y répondre dans la rubrique « Mes avis »."
+      },
+      "review_report_outcome": {
+        "title": "Suite donnée à votre signalement",
+        "body": "{outcome, select, upheld {Votre signalement a été retenu : l'avis a été masqué.} other {Votre signalement n'a pas été retenu : l'avis reste affiché.}}"
+      }
+    }
+  },
+  "teacherNotices": {
+    "title": "Notifications",
+    "markRead": "Marquer comme lu"
+  },
+  "adminNotifications": {
+    "link": "Messages WhatsApp à envoyer",
+    "title": "Messages WhatsApp à envoyer",
+    "back": "Administration",
+    "intro": "Ces messages sont à envoyer à la main depuis l'application WhatsApp Business. Copiez le texte, envoyez-le, puis cliquez sur « Marquer comme envoyé ».",
+    "empty": "Aucun message en attente.",
+    "to": "Destinataire",
+    "createdOn": "Créé le {date}",
+    "french": "Version française",
+    "arabic": "Version arabe",
+    "copyFr": "Copier le texte français",
+    "copyAr": "Copier le texte arabe",
+    "copied": "Copié",
+    "openFr": "Ouvrir WhatsApp (français)",
+    "openAr": "Ouvrir WhatsApp (arabe)",
+    "markSent": "Marquer comme envoyé",
+    "codeNote": "Ce message ne contient pas le code lui-même. Pour l'envoyer, utilisez le message de la page du paiement :",
+    "codeLink": "Ouvrir le paiement",
+    "flash": {
+      "sent": "Message marqué comme envoyé.",
+      "not_found": "Message introuvable ou déjà traité.",
+      "forbidden": "Action non autorisée."
+    }
   }
 }

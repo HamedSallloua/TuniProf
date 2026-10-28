@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { numTag } from '@/components/auth/num-tag';
 import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
+import { TeacherNotices } from '@/components/notifications/TeacherNotices';
 import { StatusBanner } from '@/components/profile/StatusBanner';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
@@ -87,6 +88,8 @@ export default async function TeacherHomePage({
           {t('notices.submitted')}
         </p>
       )}
+
+      <TeacherNotices userId={user.id} locale={locale} />
 
       <StatusBanner profile={profile} />
 
