@@ -4,18 +4,25 @@ import { MonthGrid } from './MonthGrid';
 
 /**
  * The year (spec 5.10): twelve small months for fast navigation. A month opens that month, a
- * day opens its week. No data beyond navigation.
+ * day opens its week. A day with at least one session is coloured like in the month view.
+
  */
 export function YearView({
   year,
   locale,
   today,
+  counts,
+  sessionsLabel,
   monthHref,
   dayHref,
 }: {
   year: number;
   locale: string;
   today: string;
+  /** Sessions per date (all groups). */
+  counts: Map<string, number>;
+  /** "{count} séances" for the accessible name of a day. */
+  sessionsLabel: (count: number) => string;
   monthHref: (month: string) => string;
   dayHref: (date: string) => string;
 }) {
@@ -42,20 +49,25 @@ export function YearView({
             month={month}
             weekdayLabels={weekdayNames(locale, 'narrow')}
             compact
-            renderDay={(date) => (
-              <Link
-                href={dayHref(date)}
-                aria-label={formatDay(date, locale, { dateStyle: 'full' })}
-                className={
-                  'flex size-8 items-center justify-center rounded-full text-xs hover:bg-secondary ' +
-                  (date === today
-                    ? 'bg-primary font-semibold text-primary-foreground hover:!bg-accent'
-                    : '')
-                }
-              >
-                {Number(date.slice(8))}
-              </Link>
-            )}
+            renderDay={(date) => {
+              const count = counts.get(date) ?? 0;
+              return (
+                <Link
+                  href={dayHref(date)}
+                  aria-label={`${formatDay(date, locale, { dateStyle: 'full' })}, ${sessionsLabel(count)}`}
+                  className={
+                    'flex size-8 items-center justify-center rounded-full text-xs hover:bg-secondary ' +
+                    (date === today
+                      ? 'bg-primary font-semibold text-primary-foreground hover:!bg-accent'
+                      : count > 0
+                        ? 'bg-secondary font-medium text-secondary-foreground hover:ring-2 hover:ring-primary'
+                        : '')
+                  }
+                >
+                  {Number(date.slice(8))}
+                </Link>
+              );
+            }}
           />
         </section>
       ))}

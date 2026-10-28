@@ -28,13 +28,16 @@ import {
 import {
   countByDate,
   currentSchoolYear,
+  endDateAfterWeeks,
   findConflicts,
   generateSessions,
+  MAX_PERIOD_WEEKS,
   periodDays,
   summarizeRules,
   validateName,
   validatePeriod,
   validateRules,
+  withoutEnded,
   type Conflict,
   type ExistingSession,
   type Rule,
@@ -63,7 +66,6 @@ export function toConflictLines(conflicts: Conflict[]): ConflictLine[] {
     groupName: c.with.groupName,
     otherStart: c.with.startTime,
     otherEnd: c.with.endTime,
-    archived: c.with.groupStatus === 'archived',
   }));
 }
 
@@ -76,7 +78,16 @@ export function GroupWizard({ today }: { today: string }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [start, setStart] = useState(today);
-  const [end, setEnd] = useState('');
+  // The end of the period is either picked as a date or given as a number of weeks from the
+  // first day (the teacher chooses which); `end` is whatever the chosen way gives.
+  const [endMode, setEndMode] = useState<'date' | 'weeks'>('date');
+  const [endPicked, setEndPicked] = useState('');
+  const [weeks, setWeeks] = useState('');
+  const weeksCount = /^\d{1,3}$/.test(weeks.trim())
+    ? Number(weeks.trim())
+    : NaN;
+  const weeksEnd = endDateAfterWeeks(start, weeksCount);
+  const end = endMode === 'date' ? endPicked : (weeksEnd ?? '');
   const [days, setDays] = useState<Days>({});
   const [pricing, setPricing] = useState<'per_session' | 'per_month'>(
     'per_session',
@@ -101,11 +112,15 @@ export function GroupWizard({ today }: { today: string }) {
   const periodError = validatePeriod(start, end);
   const rules: Rule[] = useMemo(() => rulesFromDays(days), [days]);
   const rulesCheck = useMemo(() => validateRules(rules), [rules]);
-  const drafts = useMemo(
+  // A session of today that is already over is not created (the server does the same).
+  const [now] = useState(() => new Date());
+  const allDrafts = useMemo(
     () =>
       !periodError && rulesCheck.ok ? generateSessions(rules, start, end) : [],
     [periodError, rulesCheck.ok, rules, start, end],
   );
+  const drafts = useMemo(() => withoutEnded(allDrafts, now), [allDrafts, now]);
+  const skippedCount = allDrafts.length - drafts.length;
   const conflicts = useMemo(
     () => (existing ? findConflicts(drafts, existing) : []),
     [drafts, existing],
@@ -310,6 +325,23 @@ export function GroupWizard({ today }: { today: string }) {
                 className={inputClass}
               />
             </div>
+          </div>
+          <fieldset className="space-y-2">
+            <legend className="font-medium">{t('endMode.label')}</legend>
+            {(['date', 'weeks'] as const).map((mode) => (
+              <label key={mode} className="flex min-h-11 items-center gap-3">
+                <input
+                  type="radio"
+                  name="end-mode"
+                  checked={endMode === mode}
+                  onChange={() => setEndMode(mode)}
+                  className="size-5 accent-primary"
+                />
+                {t(`endMode.${mode}`)}
+              </label>
+            ))}
+          </fieldset>
+          {endMode === 'date' ? (
             <div className="space-y-1">
               <label htmlFor="group-end" className="block font-medium">
                 {t('endLabel')}
@@ -317,19 +349,48 @@ export function GroupWizard({ today }: { today: string }) {
               <input
                 id="group-end"
                 type="date"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                className={inputClass}
+                value={endPicked}
+                onChange={(e) => setEndPicked(e.target.value)}
+                className={inputClass + ' sm:!w-56'}
               />
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1">
+              <label htmlFor="group-weeks" className="block font-medium">
+                {t('weeksLabel')}
+              </label>
+              <input
+                id="group-weeks"
+                inputMode="numeric"
+                dir="ltr"
+                value={weeks}
+                onChange={(e) => setWeeks(e.target.value)}
+                className={inputClass + ' text-start sm:!w-32'}
+                aria-describedby="group-weeks-hint"
+              />
+              <p
+                id="group-weeks-hint"
+                className={
+                  'text-sm ' +
+                  (weeks.trim() !== '' && weeksEnd === null
+                    ? 'text-accent'
+                    : 'text-muted')
+                }
+              >
+                {weeks.trim() !== '' && weeksEnd === null
+                  ? t('weeksError', { max: MAX_PERIOD_WEEKS })
+                  : t('weeksHint', { max: MAX_PERIOD_WEEKS })}
+              </p>
+            </div>
+          )}
           <button
             type="button"
             className={secondaryButtonClass}
             onClick={() => {
               const year = currentSchoolYear(today);
               setStart(year.start);
-              setEnd(year.end);
+              setEndMode('date');
+              setEndPicked(year.end);
             }}
           >
             {t('schoolYear')}
@@ -406,6 +467,12 @@ export function GroupWizard({ today }: { today: string }) {
                 </span>
               </p>
             </div>
+
+            {skippedCount > 0 && (
+              <p role="status" className="text-sm text-muted">
+                {t('previewSkipped', { count: skippedCount })}
+              </p>
+            )}
 
             {existing === null && !periodError && (
               <p role="status" className="text-sm text-muted">

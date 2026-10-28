@@ -122,17 +122,18 @@ All the message texts are in `messages/ar.json` under `notifications.kinds`. Ter
 
 All the texts are in `messages/ar.json` under `dashboard`, `groups` and `calendar`. Terms used:
 
-| French                 | Arabic (draft)          |
-| ---------------------- | ----------------------- |
-| Groupes                | المجموعات               |
-| Calendrier             | التقويم                 |
-| Semaine / Mois / Année | الأسبوع / الشهر / السنة |
-| Prochaines séances     | الحصص القادمة           |
-| Ajouter une séance     | إضافة حصة               |
-| Modifier la date       | تعديل التاريخ           |
-| Modifier calendrier    | تعديل التقويم           |
-| Archiver / Restaurer   | أرشفة / استعادة         |
-| Supprimer (séance)     | حذف                     |
-| Groupe vide            | مجموعة فارغة            |
-| Passée / Supprimée     | منتهية / محذوفة         |
-| Déplacée / Ajoutée     | منقولة / مضافة          |
+| French                        | Arabic (draft)          |
+| ----------------------------- | ----------------------- |
+| Groupes                       | المجموعات               |
+| Calendrier                    | التقويم                 |
+| Semaine / Mois / Année        | الأسبوع / الشهر / السنة |
+| Prochaines séances            | الحصص القادمة           |
+| Ajouter une séance            | إضافة حصة               |
+| Modifier la date              | تعديل التاريخ           |
+| Modifier calendrier           | تعديل التقويم           |
+| Choisir le nombre de semaines | اختيار عدد الأسابيع     |
+| Nombre de semaines            | عدد الأسابيع            |
+| Supprimer (séance)            | حذف                     |
+| Groupe vide                   | مجموعة فارغة            |
+| Passée / Supprimée            | منتهية / محذوفة         |
+| Déplacée / Ajoutée            | منقولة / مضافة          |

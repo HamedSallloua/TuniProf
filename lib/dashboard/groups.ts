@@ -9,6 +9,7 @@ import {
   validateName,
   validatePeriod,
   validateRules,
+  withoutEnded,
   type Conflict,
   type Rule,
 } from './schedule';
@@ -34,13 +35,12 @@ export type Group = {
   endDate: string;
   pricingModel: PricingModel;
   referencePriceMillimes: number | null;
-  status: 'active' | 'archived';
   rules: Rule[];
 };
 
 const GROUP_SELECT = `
   SELECT id, name, color, start_date::text AS start_date, end_date::text AS end_date,
-         pricing_model, reference_price_millimes, status
+         pricing_model, reference_price_millimes
     FROM groups`;
 
 type GroupRow = {
@@ -51,7 +51,6 @@ type GroupRow = {
   end_date: string;
   pricing_model: PricingModel;
   reference_price_millimes: number | null;
-  status: 'active' | 'archived';
 };
 
 async function attachRules(db: Queryable, rows: GroupRow[]): Promise<Group[]> {
@@ -76,7 +75,6 @@ async function attachRules(db: Queryable, rows: GroupRow[]): Promise<Group[]> {
     endDate: row.end_date,
     pricingModel: row.pricing_model,
     referencePriceMillimes: row.reference_price_millimes,
-    status: row.status,
     rules: ruleRows
       .filter((r) => r.group_id === row.id)
       .map((r) => ({
@@ -91,11 +89,10 @@ async function attachRules(db: Queryable, rows: GroupRow[]): Promise<Group[]> {
 export async function listGroups(
   db: Queryable,
   teacherId: string,
-  status: 'active' | 'archived',
 ): Promise<Group[]> {
   const { rows } = await db.query<GroupRow>(
-    `${GROUP_SELECT} WHERE teacher_id = $1 AND status = $2 ORDER BY lower(name), id`,
-    [teacherId, status],
+    `${GROUP_SELECT} WHERE teacher_id = $1 ORDER BY lower(name), id`,
+    [teacherId],
   );
   return attachRules(db, rows);
 }
@@ -148,12 +145,14 @@ function validPrice(value: number | null): boolean {
 /**
  * Creates the group, its weekly rules and all its sessions in one transaction. If any new
  * session overlaps one of the teacher's other sessions nothing is created and the conflicts
- * are returned (acceptance test 1). The database refuses an overlap in any case.
+ * are returned (acceptance test 1). Sessions of today that are already over are not created.
+ * The database refuses an overlap in any case.
  */
 export async function createGroup(
   pool: Pool,
   teacherId: string,
   input: GroupInput,
+  now: Date = new Date(),
 ): Promise<CreateGroupResult> {
   const name = input.name.trim();
   if (!validateName(name)) return { ok: false, reason: 'invalid_name' };
@@ -164,7 +163,10 @@ export async function createGroup(
   if (!validPrice(input.referencePriceMillimes))
     return { ok: false, reason: 'invalid_price' };
 
-  const drafts = generateSessions(input.rules, input.startDate, input.endDate);
+  const drafts = withoutEnded(
+    generateSessions(input.rules, input.startDate, input.endDate),
+    now,
+  );
 
   try {
     return await withTeacherLock(pool, teacherId, async (client) => {
@@ -179,7 +181,7 @@ export async function createGroup(
         return { ok: false, reason: 'conflicts', conflicts } as const;
 
       const used = await client.query<{ color: string }>(
-        `SELECT color FROM groups WHERE teacher_id = $1 AND status = 'active'`,
+        `SELECT color FROM groups WHERE teacher_id = $1`,
         [teacherId],
       );
       const { rows } = await client.query<{ id: string }>(
@@ -214,32 +216,10 @@ export async function createGroup(
   }
 }
 
-// --------------------------------------------------------------- archive, restore, delete
+// ---------------------------------------------------------------------------------- delete
 
 export type SimpleResult =
-  | { ok: true }
-  | { ok: false; reason: 'not_found' | 'name_taken' | 'name_mismatch' };
-
-/** "Archiver" hides the group and its sessions from the calendar; "Restaurer" brings it back. */
-export async function setGroupStatus(
-  pool: Pool,
-  teacherId: string,
-  groupId: string,
-  status: 'active' | 'archived',
-): Promise<SimpleResult> {
-  try {
-    const { rowCount } = await pool.query(
-      'UPDATE groups SET status = $3 WHERE id = $1 AND teacher_id = $2',
-      [groupId, teacherId, status],
-    );
-    return rowCount === 1 ? { ok: true } : { ok: false, reason: 'not_found' };
-  } catch (error) {
-    // Restoring a group while another active group already has the same name.
-    if ((error as { code?: string }).code === UNIQUE_VIOLATION)
-      return { ok: false, reason: 'name_taken' };
-    throw error;
-  }
-}
+  { ok: true } | { ok: false; reason: 'not_found' | 'name_mismatch' };
 
 /**
  * "Supprimer": permanent, and only when the name is typed exactly (spec 5.5, invariant 15).
@@ -285,7 +265,6 @@ export type CalendarChangeResult =
       ok: false;
       reason:
         | 'not_found'
-        | 'archived'
         | 'invalid_date'
         | 'invalid_period'
         | 'invalid_rules'
@@ -307,7 +286,7 @@ export async function changeCalendar(
   options: { now?: Date; dryRun?: boolean } = {},
 ): Promise<CalendarChangeResult> {
   const now = options.now ?? new Date();
-  const today = tunisNow(now).date;
+  const { date: today, time: nowTime } = tunisNow(now);
   if (input.effectiveDate < today) return { ok: false, reason: 'invalid_date' };
   if (!validateRules(input.rules).ok)
     return { ok: false, reason: 'invalid_rules' };
@@ -323,18 +302,13 @@ export async function changeCalendar(
 
   try {
     return await withTeacherLockNoCommit(pool, teacherId, async (client) => {
-      const { rows } = await client.query<{
-        start_date: string;
-        status: string;
-      }>(
-        `SELECT start_date::text AS start_date, status FROM groups
+      const { rows } = await client.query<{ start_date: string }>(
+        `SELECT start_date::text AS start_date FROM groups
           WHERE id = $1 AND teacher_id = $2 FOR UPDATE`,
         [groupId, teacherId],
       );
       if (!rows[0])
         return finish(client, { ok: false, reason: 'not_found' } as const);
-      if (rows[0].status !== 'active')
-        return finish(client, { ok: false, reason: 'archived' } as const);
       if (validatePeriod(rows[0].start_date, input.endDate))
         return finish(client, { ok: false, reason: 'invalid_period' } as const);
 
@@ -343,10 +317,12 @@ export async function changeCalendar(
       const removable = input.resetModified
         ? `(origin = 'rule' OR origin = 'moved')`
         : `(origin = 'rule' AND status = 'scheduled')`;
+      //    A session of today that is already over is history: it stays.
       const removed = await client.query(
         `DELETE FROM sessions
-          WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND ${removable}`,
-        [groupId, teacherId, input.effectiveDate],
+          WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND ${removable}
+            AND NOT (date = $4::date AND end_time <= $5::time)`,
+        [groupId, teacherId, input.effectiveDate, today, nowTime],
       );
 
       // 2. What is kept must not be generated twice: a session cancelled one by one stays
@@ -373,11 +349,14 @@ export async function changeCalendar(
           .filter((row) => row.origin === 'moved' && row.original_date)
           .map((row) => row.original_date as string),
       );
-      const drafts = generateSessions(
-        input.rules,
-        rows[0].start_date,
-        input.endDate,
-        input.effectiveDate,
+      const drafts = withoutEnded(
+        generateSessions(
+          input.rules,
+          rows[0].start_date,
+          input.endDate,
+          input.effectiveDate,
+        ),
+        now,
       ).filter(
         (draft) =>
           !movedAway.has(draft.date) &&

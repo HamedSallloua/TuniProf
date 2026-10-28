@@ -16,6 +16,7 @@ import {
 import {
   countByDate,
   currentSchoolYear,
+  endDateAfterWeeks,
   findConflicts,
   generateSessions,
   hasSlotChanged,
@@ -25,6 +26,7 @@ import {
   validateName,
   validatePeriod,
   validateRules,
+  withoutEnded,
   type ExistingSession,
   type Rule,
 } from '@/lib/dashboard/schedule';
@@ -323,7 +325,6 @@ describe('conflicts (acceptance test 1)', () => {
     id: `a-${date}`,
     groupId: 'A',
     groupName: 'Groupe A',
-    groupStatus: 'active',
     date,
     startTime: '08:00',
     endTime: '10:00',
@@ -474,5 +475,66 @@ describe('"Modifier date" (acceptance test 4)', () => {
     expect(hasSlotChanged(original, { ...edited, date: '2026-09-14' })).toBe(
       false,
     );
+  });
+});
+
+describe('a period given as a number of weeks', () => {
+  it('ends on the last day of the last week, the first day included', () => {
+    // Wednesday 28 October 2026: one week ends Tuesday 3 November.
+    expect(endDateAfterWeeks('2026-10-28', 1)).toBe('2026-11-03');
+    expect(endDateAfterWeeks('2026-10-28', 2)).toBe('2026-11-10');
+    expect(endDateAfterWeeks('2026-10-28', 12)).toBe('2027-01-19');
+  });
+
+  it('refuses anything but a whole number from 1 to 60, and a bad start', () => {
+    expect(endDateAfterWeeks('2026-10-28', 0)).toBeNull();
+    expect(endDateAfterWeeks('2026-10-28', 61)).toBeNull();
+    expect(endDateAfterWeeks('2026-10-28', 1.5)).toBeNull();
+    expect(endDateAfterWeeks('2026-10-28', Number.NaN)).toBeNull();
+    expect(endDateAfterWeeks('', 4)).toBeNull();
+  });
+
+  it('60 weeks always fit in the 14 months limit, whatever the start', () => {
+    for (const start of [
+      '2026-01-01',
+      '2026-02-01',
+      '2026-12-31',
+      '2027-03-01',
+    ]) {
+      const end = endDateAfterWeeks(start, 60) as string;
+      expect(validatePeriod(start, end)).toBeNull();
+    }
+  });
+});
+
+describe('sessions already over are not created', () => {
+  const wednesday = new Date('2026-10-28T15:25:00Z'); // 16:25 in Tunis
+  const draft = (date: string, startTime: string, endTime: string) => ({
+    date,
+    startTime,
+    endTime,
+  });
+
+  it('drops a session of today that ended, keeps one in progress, later ones and other days', () => {
+    const drafts = [
+      draft('2026-10-28', '08:00', '10:00'),
+      draft('2026-10-28', '16:00', '17:00'),
+      draft('2026-10-28', '18:00', '19:00'),
+      draft('2026-11-04', '08:00', '10:00'),
+    ];
+    expect(withoutEnded(drafts, wednesday)).toEqual(drafts.slice(1));
+  });
+
+  it('a session that ends exactly now is over', () => {
+    const now = new Date('2026-10-28T09:00:00Z'); // 10:00 in Tunis
+    expect(withoutEnded([draft('2026-10-28', '08:00', '10:00')], now)).toEqual(
+      [],
+    );
+  });
+
+  it('drops everything on earlier days', () => {
+    expect(
+      withoutEnded([draft('2026-10-27', '18:00', '19:00')], wednesday),
+    ).toEqual([]);
   });
 });

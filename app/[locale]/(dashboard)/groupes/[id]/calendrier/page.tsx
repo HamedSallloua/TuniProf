@@ -22,8 +22,8 @@ export default async function ChangeCalendarPage({
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const group = await getGroup(getPool(), user.id, id);
   if (!group) notFound();
-  // Nothing can be changed during the read-only period, nor on an archived group.
-  if (access !== 'full' || group.status !== 'active')
+  // Nothing can be changed during the read-only period.
+  if (access !== 'full')
     redirect({ href: `/groupes/${id}`, locale: locale as Locale });
 
   return (

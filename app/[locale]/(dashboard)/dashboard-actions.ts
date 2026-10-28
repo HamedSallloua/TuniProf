@@ -12,7 +12,6 @@ import {
   changeCalendar,
   createGroup,
   deleteGroup,
-  setGroupStatus,
   type CalendarChangeResult,
   type CreateGroupResult,
 } from '@/lib/dashboard/groups';
@@ -100,52 +99,6 @@ export async function createGroupAction(
   const result = await createGroup(getPool(), who.user.id, parsed.data);
   if (result.ok) revalidate();
   return result;
-}
-
-async function backToList(
-  tab: 'actifs' | 'archives',
-  flash: string,
-): Promise<never> {
-  const locale = (await getLocale()) as Locale;
-  revalidate();
-  return redirect({
-    href: {
-      pathname: '/groupes',
-      query: { onglet: tab, ...(flash ? { message: flash } : {}) },
-    },
-    locale,
-  });
-}
-
-export async function archiveGroupAction(formData: FormData): Promise<void> {
-  const who = await writableTeacher();
-  const id = uuid.safeParse(text(formData, 'groupId'));
-  if (!who.ok || !id.success) return backToList('actifs', 'error');
-  const result = await setGroupStatus(
-    getPool(),
-    who.user.id,
-    id.data,
-    'archived',
-  );
-  return backToList('actifs', result.ok ? 'archived' : 'error');
-}
-
-export async function restoreGroupAction(formData: FormData): Promise<void> {
-  const who = await writableTeacher();
-  const id = uuid.safeParse(text(formData, 'groupId'));
-  if (!who.ok || !id.success) return backToList('archives', 'error');
-  const result = await setGroupStatus(
-    getPool(),
-    who.user.id,
-    id.data,
-    'active',
-  );
-  if (!result.ok && result.reason === 'name_taken')
-    return backToList('archives', 'name_taken');
-  return backToList(
-    result.ok ? 'actifs' : 'archives',
-    result.ok ? 'restored' : 'error',
-  );
 }
 
 /** "Supprimer" with the name typed in the dialog (spec 5.5, invariant 15). */

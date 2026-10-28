@@ -31,7 +31,7 @@ export const SESSION_COLUMNS = `
   to_char(s.start_time, 'HH24:MI') AS start_time,
   to_char(s.end_time, 'HH24:MI') AS end_time,
   s.status, s.origin, s.original_date::text AS original_date,
-  g.name AS group_name, g.color AS group_color, g.status AS group_status`;
+  g.name AS group_name, g.color AS group_color`;
 
 type SessionRowDb = {
   id: string;
@@ -44,7 +44,6 @@ type SessionRowDb = {
   original_date: string | null;
   group_name: string;
   group_color: string;
-  group_status: 'active' | 'archived';
 };
 
 export type SessionRow = {
@@ -52,7 +51,6 @@ export type SessionRow = {
   groupId: string;
   groupName: string;
   groupColor: string;
-  groupStatus: 'active' | 'archived';
   date: string;
   startTime: string;
   endTime: string;
@@ -67,7 +65,6 @@ export function toSessionRow(row: SessionRowDb): SessionRow {
     groupId: row.group_id,
     groupName: row.group_name,
     groupColor: row.group_color,
-    groupStatus: row.group_status,
     date: row.date,
     startTime: row.start_time,
     endTime: row.end_time,
@@ -82,7 +79,6 @@ export function toExisting(row: SessionRow): ExistingSession {
     id: row.id,
     groupId: row.groupId,
     groupName: row.groupName,
-    groupStatus: row.groupStatus,
     date: row.date,
     startTime: row.startTime,
     endTime: row.endTime,
@@ -90,9 +86,8 @@ export function toExisting(row: SessionRow): ExistingSession {
 }
 
 /**
- * The teacher's scheduled sessions between two dates, of ACTIVE and ARCHIVED groups alike:
- * an archived group's sessions still occupy their slots (docs/DECISIONS.md), so they count
- * in conflicts. Cancelled sessions are never in the way.
+ * The teacher's scheduled sessions between two dates, of every group. Cancelled sessions are
+ * never in the way.
  */
 export async function loadScheduledSessions(
   db: Queryable,

@@ -2,6 +2,14 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-28 (M8, changes asked by the owner after review)
+
+- **Archiving groups is removed** (owner's request: "not needed anymore"). This differs from spec 5.5, which lists "Archiver" and "Restaurer": the owner's ruling wins. Migration 0017 drops `groups.status` and makes the group name unique among ALL of a teacher's groups. The migration was written as a new file because 0016 had been applied on the development database; it stops with an error (and deletes nothing) if two groups of one teacher share a name. This replaces the "archived groups keep blocking slots" decision below, which no longer applies. The delete dialog no longer recommends archiving.
+- **A period can be given as a number of weeks** from the first day, as an alternative to the end date: the teacher picks one of two options. N weeks = N x 7 days, the first day included (starting Wed 28 Oct, 1 week ends Tue 3 Nov). Whole numbers from 1 to 60: 60 weeks always fit in the 14-month limit. Nothing is stored about the choice: only the end date is saved.
+- **Sessions already over are not created**: when a group is created (or its calendar rebuilt from today), any session whose END time has passed in Tunisia time is left out, so the calendar never gets a lesson in the past. A session in progress is kept. A period that only has finished sessions creates zero sessions (valid, as before). The wizard preview says how many were left out. The same rule as the lock on past sessions (end time passed).
+- **"Modifier calendrier" no longer deletes a finished session of today** when rebuilt from today (it did: the effective date can be today and the rebuild removed everything from that date).
+- **The year view colours days that have sessions**, with the same colour as the month view (the plain "has sessions" circle, not the group colours). Spec 5.10 only asked for navigation in the year view; this is the owner's request.
+
 ## 2026-10-28 (M8)
 
 AGENT_CONTEXT and the spec agree on M8. Choices not fixed by the spec (see PRE_PRODUCTION_NOTES section 9):
@@ -11,13 +19,13 @@ AGENT_CONTEXT and the spec agree on M8. Choices not fixed by the spec (see PRE_P
 - **Dates and times are local Tunisia strings** (`YYYY-MM-DD`, `HH:MM`), never instants: a 17:00 lesson stays 17:00 whatever the server's time zone. Weekday 1 is Monday, 7 is Sunday. "Now" is computed in Africa/Tunis (`tunisNow`).
 - **The database refuses overlaps**: exclusion constraint `no_teacher_overlap` (btree_gist) on the teacher and the time range of scheduled sessions. Touching sessions (one ends at 10:00, the next starts at 10:00) are allowed. The application also checks first, only to list the conflicts nicely; the constraint is the guarantee.
 - **All writes of a teacher take a lock** (transaction advisory lock on the teacher), so two browser tabs cannot both pass the check. Alternative rejected: relying on the constraint error alone (works, but the message would be less useful).
-- **An archived group keeps its future sessions in conflicts** (they are hidden from the calendar but still occupy the slot). Reason: restoring a group must never create an overlap. To confirm with the owner.
+- ~~An archived group keeps its future sessions in conflicts~~: no longer applies, archiving was removed (see the changes above).
 - **A cancelled session frees its slot** (spec 5.3), so the constraint covers `scheduled` sessions only.
 
 **Groups**
 
 - **Suggested period = school year**, 1 September to 30 June (my choice; the spec only fixes the 14-month maximum, which is also a database check).
-- **Group names are unique among a teacher's active groups**, ignoring case and spaces (partial unique index), so an archived name can be reused.
+- **Group names are unique among a teacher's groups**, ignoring case and spaces (unique index; it covered only active groups until archiving was removed).
 - **Colour:** one of 10 colours picked automatically (the first one not used by an active group), changeable at creation.
 - **Delete = typed name** of the group, with a warning that sessions go too. The revenue warning of spec 5.5 waits for M10 (no billing data yet).
 - **"Groupe vide"** is shown on every group until students exist (M9).

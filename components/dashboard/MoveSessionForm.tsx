@@ -25,7 +25,6 @@ export function conflictLinesFor(
     groupName: other.groupName,
     otherStart: other.startTime,
     otherEnd: other.endTime,
-    archived: other.groupStatus === 'archived',
   }));
 }
 

@@ -11,8 +11,7 @@ import {
 import { useRouter } from '@/i18n/navigation';
 
 /**
- * "Supprimer" a group (spec 5.5, invariant 15): permanent, so the name must be typed. The
- * dialog also recommends "Archiver", which keeps the history.
+ * "Supprimer" a group (spec 5.5, invariant 15): permanent, so the name must be typed.
  */
 export function DeleteGroup({
   groupId,
@@ -70,9 +69,6 @@ export function DeleteGroup({
           {t('title', { name: groupName })}
         </h2>
         <p className="text-sm">{t('body')}</p>
-        <p className="rounded-md bg-secondary p-3 text-sm text-secondary-foreground">
-          {t('recommend')}
-        </p>
         <div className="space-y-1">
           <label htmlFor={id} className="block font-medium">
             {t('typeName')}

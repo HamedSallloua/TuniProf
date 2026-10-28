@@ -15,23 +15,15 @@ export const metadata: Metadata = { robots: { index: false } };
 
 export default async function GroupsPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ onglet?: string; message?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale as Locale);
   const { user, access } = await requireDashboard(locale as Locale);
-  const { onglet, message } = await searchParams;
-  const archived = onglet === 'archives';
 
   const t = await getTranslations('groups.list');
-  const groups = await listGroups(
-    getPool(),
-    user.id,
-    archived ? 'archived' : 'active',
-  );
+  const groups = await listGroups(getPool(), user.id);
 
   const rows: GroupRowData[] = groups.map((group: Group) => ({
     id: group.id,
@@ -56,12 +48,6 @@ export default async function GroupsPage({
         : String(group.referencePriceMillimes),
   }));
 
-  const tab = (active: boolean) =>
-    'inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium ' +
-    (active
-      ? 'bg-primary text-primary-foreground'
-      : 'border border-border bg-surface text-primary hover:bg-secondary');
-
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -74,38 +60,7 @@ export default async function GroupsPage({
         )}
       </header>
 
-      {message && (
-        <p
-          role={['error', 'name_taken'].includes(message) ? 'alert' : 'status'}
-          className="rounded-md border border-primary bg-secondary p-3 text-sm text-primary"
-        >
-          {t(`flash.${message}` as 'flash.archived')}
-        </p>
-      )}
-
-      <nav aria-label={t('tabs')} className="flex gap-2">
-        <Link
-          href="/groupes"
-          className={tab(!archived)}
-          aria-current={archived ? undefined : 'page'}
-        >
-          {t('active')}
-        </Link>
-        <Link
-          href={{ pathname: '/groupes', query: { onglet: 'archives' } }}
-          className={tab(archived)}
-          aria-current={archived ? 'page' : undefined}
-        >
-          {t('archived')}
-        </Link>
-      </nav>
-
-      <GroupList
-        key={archived ? 'a' : 'b'}
-        rows={rows}
-        archived={archived}
-        readOnly={access !== 'full'}
-      />
+      <GroupList rows={rows} readOnly={access !== 'full'} />
     </div>
   );
 }

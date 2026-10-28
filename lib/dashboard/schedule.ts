@@ -1,7 +1,9 @@
 import {
+  addDays,
   addMonths,
   diffDays,
   eachDate,
+  isPast,
   isValidDate,
   isValidTime,
   shortTime,
@@ -32,7 +34,6 @@ export type ExistingSession = SessionDraft & {
   id: string;
   groupId: string;
   groupName: string;
-  groupStatus: 'active' | 'archived';
 };
 
 export type Conflict = { draft: SessionDraft; with: ExistingSession };
@@ -60,6 +61,24 @@ export function validatePeriod(
   if (endDate < startDate) return 'end_before_start';
   if (endDate > addMonths(startDate, MAX_PERIOD_MONTHS)) return 'too_long';
   return null;
+}
+
+/** 60 weeks is the most that always fits in 14 months (the shortest 14 months last 424 days). */
+export const MAX_PERIOD_WEEKS = 60;
+
+/**
+ * The last day of a period given as a number of weeks from its first day: 1 week starting
+ * Wednesday 28 October ends Tuesday 3 November (7 days, the first one included). Null when the
+ * number is not a whole number from 1 to 60.
+ */
+export function endDateAfterWeeks(
+  startDate: string,
+  weeks: number,
+): string | null {
+  if (!isValidDate(startDate)) return null;
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > MAX_PERIOD_WEEKS)
+    return null;
+  return addDays(startDate, weeks * 7 - 1);
 }
 
 /** "7 sept. 2026 -> 21 sept. 2026, 15 jours": the number of days, both ends included. */
@@ -193,6 +212,17 @@ export function generateSessions(
     }
   }
   return drafts;
+}
+
+/**
+ * A new calendar never gets sessions that are already over: at 16:25 a 08:00-10:00 session of
+ * today is left out (it would be a lesson in the past). A session in progress is kept.
+ */
+export function withoutEnded(
+  drafts: SessionDraft[],
+  now: Date = new Date(),
+): SessionDraft[] {
+  return drafts.filter((draft) => !isPast(draft, now));
 }
 
 // ------------------------------------------------------------------------------ conflicts

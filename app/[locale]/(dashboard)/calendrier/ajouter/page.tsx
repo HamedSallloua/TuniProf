@@ -25,7 +25,7 @@ export default async function AddSessionPage({
   if (access !== 'full') redirect({ href: returnTo, locale: locale as Locale });
 
   const today = tunisNow(now).date;
-  const groups = await listGroups(getPool(), user.id, 'active');
+  const groups = await listGroups(getPool(), user.id);
   const defaultDate =
     isValidDate(query.date) && query.date >= today ? query.date : today;
 

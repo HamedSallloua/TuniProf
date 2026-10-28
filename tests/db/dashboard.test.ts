@@ -3,11 +3,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { runMigrations } from '@/db/migrate';
 import {
   changeCalendar,
-  createGroup,
+  createGroup as createGroupAt,
   deleteGroup,
   getGroup,
   listGroups,
-  setGroupStatus,
   type GroupInput,
 } from '@/lib/dashboard/groups';
 import { eachDate } from '@/lib/dashboard/dates';
@@ -35,6 +34,14 @@ const EXCLUSION_VIOLATION = '23P01';
 
 // A fixed "now" (1 September 2026, 10:00 in Tunis) so nothing depends on the real date.
 const NOW = new Date('2026-09-01T09:00:00Z');
+
+// Creating a group leaves out sessions that are already over, so it always gets a fixed "now".
+const createGroup = (
+  pool: Pool,
+  owner: string,
+  input: GroupInput,
+  now: Date = NOW,
+) => createGroupAt(pool, owner, input, now);
 
 const rule = (
   weekday: number,
@@ -213,19 +220,18 @@ describe.skipIf(!testDatabaseUrl)(
         });
       });
 
-      it('the name is unique among the ACTIVE groups of a teacher, whatever the letter case', async () => {
-        const insertGroup = (owner: string, name: string, status = 'active') =>
+      it('the name is unique among the groups of a teacher, whatever the letter case', async () => {
+        const insertGroup = (owner: string, name: string) =>
           pool.query(
-            `INSERT INTO groups (teacher_id, name, color, start_date, end_date, status)
-           VALUES ($1, $2, '#1d4ed8', '2026-09-01', '2026-09-30', $3)`,
-            [owner, name, status],
+            `INSERT INTO groups (teacher_id, name, color, start_date, end_date)
+           VALUES ($1, $2, '#1d4ed8', '2026-09-01', '2026-09-30')`,
+            [owner, name],
           );
         await insertGroup(teacher, 'Math 4ème');
         await expect(
           insertGroup(teacher, '  math 4ème '),
         ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
         await insertGroup(other, 'Math 4ème'); // another teacher: fine
-        await insertGroup(teacher, 'Math 4ème', 'archived'); // archived: fine
       });
 
       it('the sessions of one day of a group cannot overlap (weekly rules)', async () => {
@@ -272,7 +278,6 @@ describe.skipIf(!testDatabaseUrl)(
           endDate: '2026-09-21',
           pricingModel: 'per_session',
           referencePriceMillimes: null,
-          status: 'active',
           rules: [
             { weekday: 1, slotNo: 1, startTime: '08:00', endTime: '10:00' },
           ],
@@ -300,13 +305,53 @@ describe.skipIf(!testDatabaseUrl)(
           ['2026-09-14', 'Groupe A', '08:00', '10:00'],
           ['2026-09-21', 'Groupe A', '08:00', '10:00'],
         ]);
-        expect(
-          (await listGroups(pool, teacher, 'active')).map((g) => g.name),
-        ).toEqual(['Groupe A']);
+        expect((await listGroups(pool, teacher)).map((g) => g.name)).toEqual([
+          'Groupe A',
+        ]);
         expect(
           (await pool.query('SELECT count(*)::int AS n FROM sessions')).rows[0]
             .n,
         ).toBe(3);
+      });
+
+      it('does not create a session of today that is already over, but keeps one in progress and later ones', async () => {
+        const wednesday430 = new Date('2026-10-28T15:25:00Z'); // 16:25 in Tunis
+        const input = (start: string, end: string): GroupInput => ({
+          ...mondays('2026-10-28', '2026-10-28'),
+          name: `G ${start}`,
+          rules: [rule(3, 1, start, end)],
+        });
+        const over = await createGroup(
+          pool,
+          teacher,
+          input('08:00', '10:00'),
+          wednesday430,
+        );
+        expect(over).toMatchObject({ ok: true, sessionCount: 0 });
+        const inProgress = await createGroup(
+          pool,
+          teacher,
+          input('16:00', '17:00'),
+          wednesday430,
+        );
+        expect(inProgress).toMatchObject({ ok: true, sessionCount: 1 });
+        const later = await createGroup(
+          pool,
+          teacher,
+          input('18:00', '19:00'),
+          wednesday430,
+        );
+        expect(later).toMatchObject({ ok: true, sessionCount: 1 });
+        // and next week's Wednesday at 08:00 is still created
+        const nextWeek = await createGroup(
+          pool,
+          teacher,
+          { ...input('08:00', '10:00'), name: 'Next', endDate: '2026-11-04' },
+          wednesday430,
+        );
+        expect(nextWeek).toMatchObject({ ok: true, sessionCount: 1 });
+        if (nextWeek.ok)
+          expect(await dates(nextWeek.groupId)).toEqual(['2026-11-04']);
       });
 
       it('two groups of different teachers may use the same slot', async () => {
@@ -329,9 +374,7 @@ describe.skipIf(!testDatabaseUrl)(
             }),
           );
         }
-        const colors = (await listGroups(pool, teacher, 'active')).map(
-          (g) => g.color,
-        );
+        const colors = (await listGroups(pool, teacher)).map((g) => g.color);
         expect(new Set(colors).size).toBe(3);
       });
 
@@ -761,7 +804,7 @@ describe.skipIf(!testDatabaseUrl)(
     });
 
     describe('"Ajouter une séance"', () => {
-      it('adds one extra session, refuses an overlap, a past slot and an archived group', async () => {
+      it('adds one extra session, refuses an overlap and a past slot', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
         const slot = {
           groupId: group,
@@ -798,9 +841,13 @@ describe.skipIf(!testDatabaseUrl)(
           ),
         ).toEqual({ ok: false, reason: 'invalid' });
 
-        await setGroupStatus(pool, teacher, group, 'archived');
         expect(
-          await addSession(pool, teacher, { ...slot, date: '2026-09-10' }, NOW),
+          await addSession(
+            pool,
+            teacher,
+            { ...slot, groupId: '00000000-0000-4000-8000-000000000000' },
+            NOW,
+          ),
         ).toEqual({ ok: false, reason: 'group_not_found' });
       });
     });
@@ -832,48 +879,9 @@ describe.skipIf(!testDatabaseUrl)(
       });
     });
 
-    // ------------------------------------------------------------------- archive, delete
+    // ------------------------------------------------------------------------- delete
 
-    describe('archiving and deleting', () => {
-      it('an archived group leaves the calendar but its sessions still occupy their slots', async () => {
-        const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
-        expect(await setGroupStatus(pool, teacher, group, 'archived')).toEqual({
-          ok: true,
-        });
-        expect(
-          await listSessions(pool, teacher, '2026-09-01', '2026-09-30'),
-        ).toEqual([]);
-        expect(
-          (await listGroups(pool, teacher, 'archived')).map((g) => g.id),
-        ).toEqual([group]);
-        expect(await listGroups(pool, teacher, 'active')).toEqual([]);
-
-        const clash = await createGroup(pool, teacher, {
-          ...mondays('2026-09-07', '2026-09-07', '09:00', '10:00'),
-          name: 'Groupe B',
-        });
-        expect(clash).toMatchObject({ ok: false, reason: 'conflicts' });
-        if (!clash.ok && clash.conflicts)
-          expect(clash.conflicts[0].with.groupStatus).toBe('archived');
-
-        expect(await setGroupStatus(pool, teacher, group, 'active')).toEqual({
-          ok: true,
-        });
-        expect(
-          await listSessions(pool, teacher, '2026-09-01', '2026-09-30'),
-        ).toHaveLength(3);
-      });
-
-      it('restoring is refused while another active group has the same name', async () => {
-        const group = await make(teacher, mondays('2026-09-07', '2026-09-07'));
-        await setGroupStatus(pool, teacher, group, 'archived');
-        await make(teacher, { ...mondays('2026-10-05', '2026-10-05') });
-        expect(await setGroupStatus(pool, teacher, group, 'active')).toEqual({
-          ok: false,
-          reason: 'name_taken',
-        });
-      });
-
+    describe('deleting', () => {
       it('deleting needs the exact name, and removes the rules and sessions with the group', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
         expect(await deleteGroup(pool, teacher, group, 'Groupe')).toEqual({
@@ -909,6 +917,40 @@ describe.skipIf(!testDatabaseUrl)(
 
     describe('"Modifier calendrier" from an effective date', () => {
       const now = new Date('2026-09-14T06:00:00Z'); // 07:00 on Monday 14 September in Tunis
+
+      it("keeps today's sessions that are already over when the calendar is rebuilt from today", async () => {
+        const group = await make(teacher, mondays('2026-09-07', '2026-10-05'));
+        const noon = new Date('2026-09-14T11:00:00Z'); // 12:00 in Tunis, the 08:00 session is over
+        const result = await changeCalendar(
+          pool,
+          teacher,
+          group,
+          {
+            effectiveDate: '2026-09-14',
+            endDate: '2026-10-05',
+            rules: [rule(1, 1, '14:00', '16:00')],
+            resetModified: false,
+          },
+          { now: noon },
+        );
+        expect(result).toEqual({ ok: true, removed: 3, created: 4 });
+        expect(
+          (
+            await pool.query(
+              `SELECT date::text AS date, to_char(start_time, 'HH24:MI') AS start
+                 FROM sessions WHERE group_id = $1 ORDER BY date, start_time`,
+              [group],
+            )
+          ).rows.map((r) => `${r.date} ${r.start}`),
+        ).toEqual([
+          '2026-09-07 08:00',
+          '2026-09-14 08:00',
+          '2026-09-14 14:00',
+          '2026-09-21 14:00',
+          '2026-09-28 14:00',
+          '2026-10-05 14:00',
+        ]);
+      });
 
       it('never touches the past, rebuilds the future with the new pattern', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-10-05'));
@@ -1104,7 +1146,7 @@ describe.skipIf(!testDatabaseUrl)(
         ]);
       });
 
-      it('refuses an effective date in the past, an archived group, a bad period and bad rules', async () => {
+      it('refuses an effective date in the past, a bad period and bad rules', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-10-05'));
         const base = {
           effectiveDate: '2026-09-15',
@@ -1148,17 +1190,13 @@ describe.skipIf(!testDatabaseUrl)(
             { now },
           ),
         ).toEqual({ ok: false, reason: 'invalid_rules' });
-        await setGroupStatus(pool, teacher, group, 'archived');
-        expect(
-          await changeCalendar(pool, teacher, group, base, { now }),
-        ).toEqual({ ok: false, reason: 'archived' });
       });
     });
 
     // -------------------------------------------------------------------------- isolation
 
     describe('a teacher only reaches their own rows (invariant 16)', () => {
-      it("teacher B cannot read, change, archive, delete or schedule in teacher A's data", async () => {
+      it("teacher B cannot read, change, delete or schedule in teacher A's data", async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-09-21'));
         const [session] = await listSessions(
           pool,
@@ -1168,7 +1206,7 @@ describe.skipIf(!testDatabaseUrl)(
         );
 
         expect(await getGroup(pool, other, group)).toBeNull();
-        expect(await listGroups(pool, other, 'active')).toEqual([]);
+        expect(await listGroups(pool, other)).toEqual([]);
         expect(
           await listSessions(pool, other, '2026-09-01', '2026-09-30'),
         ).toEqual([]);
@@ -1203,10 +1241,6 @@ describe.skipIf(!testDatabaseUrl)(
             NOW,
           ),
         ).toEqual({ ok: false, reason: 'group_not_found' });
-        expect(await setGroupStatus(pool, other, group, 'archived')).toEqual({
-          ok: false,
-          reason: 'not_found',
-        });
         expect(await deleteGroup(pool, other, group, 'Groupe A')).toEqual({
           ok: false,
           reason: 'not_found',
@@ -1232,7 +1266,7 @@ describe.skipIf(!testDatabaseUrl)(
           '2026-09-14',
           '2026-09-21',
         ]);
-        expect((await getGroup(pool, teacher, group))?.status).toBe('active');
+        expect(await getGroup(pool, teacher, group)).not.toBeNull();
       });
 
       it("another teacher's sessions never cause a conflict", async () => {

@@ -63,7 +63,7 @@ export default async function CalendarPage({
     ? (query.vue as CalendarView)
     : 'semaine';
   const date = isValidDate(query.date) ? query.date : today;
-  const groups = await listGroups(pool, user.id, 'active');
+  const groups = await listGroups(pool, user.id);
   const groupId = groups.some((g) => g.id === query.groupe)
     ? query.groupe
     : undefined;
@@ -89,7 +89,12 @@ export default async function CalendarPage({
       ? { from: weekStart, to: addDays(weekStart, 6) }
       : vue === 'mois'
         ? { from: startOfMonth(date), to: endOfMonth(date) }
-        : null;
+        : vue === 'annee'
+          ? {
+              from: `${date.slice(0, 4)}-01-01`,
+              to: `${date.slice(0, 4)}-12-31`,
+            }
+          : null;
   const shown = range
     ? (
         await listSessions(pool, user.id, range.from, range.to, { groupId })
@@ -300,6 +305,8 @@ export default async function CalendarPage({
           year={Number(date.slice(0, 4))}
           locale={locale}
           today={today}
+          counts={countByDate(shown)}
+          sessionsLabel={(count) => t('sessionsCount', { count })}
           monthHref={(month) =>
             url({ vue: 'mois', date: `${month}-01`, jour: null })
           }

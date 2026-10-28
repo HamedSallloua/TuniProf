@@ -2,10 +2,6 @@
 
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import {
-  archiveGroupAction,
-  restoreGroupAction,
-} from '@/app/[locale]/(dashboard)/dashboard-actions';
 import { secondaryButtonClass } from '@/components/auth/styles';
 import { Link } from '@/i18n/navigation';
 import {
@@ -34,11 +30,9 @@ export type GroupRowData = {
  */
 export function GroupList({
   rows,
-  archived,
   readOnly,
 }: {
   rows: GroupRowData[];
-  archived: boolean;
   readOnly: boolean;
 }) {
   const t = useTranslations('groups.list');
@@ -79,11 +73,7 @@ export function GroupList({
           role="status"
           className="rounded-card border border-border bg-surface p-4 text-muted"
         >
-          {query !== ''
-            ? t('noResults')
-            : archived
-              ? t('emptyArchived')
-              : t('empty')}
+          {query !== '' ? t('noResults') : t('empty')}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -132,29 +122,13 @@ export function GroupList({
                   >
                     {t('open')}
                   </Link>
-                  {!readOnly && !archived && (
-                    <>
-                      <Link
-                        href={`/groupes/${row.id}/calendrier`}
-                        className={secondaryButtonClass}
-                      >
-                        {t('changeCalendar')}
-                      </Link>
-                      <form action={archiveGroupAction}>
-                        <input type="hidden" name="groupId" value={row.id} />
-                        <button type="submit" className={secondaryButtonClass}>
-                          {t('archive')}
-                        </button>
-                      </form>
-                    </>
-                  )}
-                  {!readOnly && archived && (
-                    <form action={restoreGroupAction}>
-                      <input type="hidden" name="groupId" value={row.id} />
-                      <button type="submit" className={secondaryButtonClass}>
-                        {t('restore')}
-                      </button>
-                    </form>
+                  {!readOnly && (
+                    <Link
+                      href={`/groupes/${row.id}/calendrier`}
+                      className={secondaryButtonClass}
+                    >
+                      {t('changeCalendar')}
+                    </Link>
                   )}
                   {!readOnly && (
                     <DeleteGroup groupId={row.id} groupName={row.name} />

@@ -962,8 +962,7 @@
     },
     "conflict": {
       "title": "{count, plural, one {# conflit à corriger} other {# conflits à corriger}}",
-      "line": "{day} {time} chevauche {group} {existing}",
-      "archived": "archivé"
+      "line": "{day} {time} chevauche {group} {existing}"
     },
     "flash": {
       "cancelled": "Séance supprimée. Vous pouvez la restaurer.",
@@ -978,7 +977,7 @@
       "invalid": "Date ou heures invalides : la fin doit être après le début.",
       "unchanged": "Rien n'a changé.",
       "new_slot_in_past": "La nouvelle date est déjà passée.",
-      "group_not_found": "Ce groupe n'est pas disponible (archivé ou supprimé).",
+      "group_not_found": "Ce groupe n'existe plus.",
       "conflict": "Cette séance chevauche une autre séance.",
       "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
       "no_access": "Votre Dashboard n'est plus actif.",
@@ -989,14 +988,10 @@
     "list": {
       "title": "Groupes",
       "create": "Créer un groupe",
-      "tabs": "Groupes actifs ou archivés",
-      "active": "Actifs",
-      "archived": "Archivés",
       "searchLabel": "Rechercher un groupe",
       "searchPlaceholder": "Nom ou prix",
       "noResults": "Aucun groupe ne correspond.",
       "empty": "Vous n'avez pas encore de groupe. Créez le premier pour générer vos séances.",
-      "emptyArchived": "Aucun groupe archivé.",
       "noPrice": "Pas de prix de référence",
       "priceSession": "{price} par séance",
       "priceMonth": "{price} par mois",
@@ -1004,21 +999,12 @@
       "matchName": "Nom",
       "matchPrice": "Prix",
       "open": "Ouvrir",
-      "changeCalendar": "Modifier calendrier",
-      "archive": "Archiver",
-      "restore": "Restaurer",
-      "flash": {
-        "archived": "Groupe archivé. Il a disparu du calendrier ; son historique est conservé.",
-        "restored": "Groupe restauré.",
-        "name_taken": "Un autre groupe actif porte déjà ce nom : renommez-le avant de restaurer celui-ci.",
-        "error": "L'action n'a pas pu être faite."
-      }
+      "changeCalendar": "Modifier calendrier"
     },
     "delete": {
       "button": "Supprimer",
       "title": "Supprimer le groupe « {name} » ?",
       "body": "Cette action est définitive : le groupe et toutes ses séances seront supprimés.",
-      "recommend": "Pour garder l'historique, utilisez plutôt « Archiver ».",
       "typeName": "Tapez le nom du groupe pour confirmer",
       "confirm": "Supprimer définitivement",
       "cancel": "Annuler",
@@ -1102,7 +1088,7 @@
       "creating": "Création...",
       "errors": {
         "invalid_name": "Le nom doit contenir entre 2 et 50 caractères.",
-        "name_taken": "Un autre groupe actif porte déjà ce nom.",
+        "name_taken": "Un autre groupe porte déjà ce nom.",
         "invalid_period": "La période est invalide.",
         "invalid_rules": "Les séances de la semaine sont invalides.",
         "invalid_price": "Le prix de référence est invalide.",
@@ -1111,11 +1097,19 @@
         "no_access": "Votre Dashboard n'est plus actif.",
         "not_signed_in": "Reconnectez-vous pour continuer.",
         "generic": "Le groupe n'a pas pu être créé. Réessayez."
-      }
+      },
+      "endMode": {
+        "label": "Fin de la période",
+        "date": "Choisir la date de fin",
+        "weeks": "Choisir le nombre de semaines"
+      },
+      "weeksLabel": "Nombre de semaines",
+      "weeksHint": "À partir du premier jour choisi (compris) : une semaine = 7 jours. Maximum {max} semaines.",
+      "weeksError": "Entrez un nombre entier de semaines entre 1 et {max}.",
+      "previewSkipped": "{count, plural, one {# séance d'aujourd'hui est déjà terminée : elle ne sera pas créée.} other {# séances d'aujourd'hui sont déjà terminées : elles ne seront pas créées.}}"
     },
     "page": {
       "back": "Retour aux groupes",
-      "archivedBadge": "Archivé",
       "period": "Période",
       "schedule": "Semaine type",
       "price": "Prix de référence",
@@ -1145,7 +1139,6 @@
         "invalid_period": "La date de fin est invalide (14 mois au plus depuis le début).",
         "invalid_rules": "Les séances de la semaine sont invalides.",
         "not_found": "Ce groupe n'existe plus.",
-        "archived": "Ce groupe est archivé : restaurez-le pour changer son calendrier.",
         "invalid": "Des informations sont invalides.",
         "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
         "no_access": "Votre Dashboard n'est plus actif.",

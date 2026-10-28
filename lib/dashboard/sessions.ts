@@ -45,8 +45,7 @@ export type SessionResult =
 // --------------------------------------------------------------------------------- reading
 
 /**
- * The sessions of the calendar between two dates, newest group data included. Only ACTIVE
- * groups: an archived group disappears from the calendar (spec 5.5). Cancelled sessions are
+ * The sessions of the calendar between two dates, newest group data included. Cancelled sessions are
  * returned too (the day overlay shows them greyed with "Restaurer"); callers filter.
  */
 export async function listSessions(
@@ -59,7 +58,7 @@ export async function listSessions(
   const { rows } = await db.query(
     `SELECT ${SESSION_COLUMNS}
        FROM sessions s JOIN groups g ON g.id = s.group_id
-      WHERE s.teacher_id = $1 AND g.status = 'active'
+      WHERE s.teacher_id = $1
         AND s.date BETWEEN $2::date AND $3::date
         AND ($4::uuid IS NULL OR s.group_id = $4)
       ORDER BY s.date, s.start_time, s.id`,
@@ -156,8 +155,6 @@ export async function restoreSession(
       if (isPast(session, now)) return { ok: false, reason: 'past' } as const;
       if (session.status !== 'cancelled')
         return { ok: false, reason: 'not_scheduled' } as const;
-      if (session.groupStatus !== 'active')
-        return { ok: false, reason: 'group_not_found' } as const;
 
       const conflicts = await overlapping(
         client,
@@ -233,7 +230,7 @@ export async function moveSession(
       const session = await loadForUpdate(client, teacherId, sessionId);
       if (!session) return { ok: false, reason: 'not_found' } as const;
       if (isPast(session, now)) return { ok: false, reason: 'past' } as const;
-      if (session.status !== 'scheduled' || session.groupStatus !== 'active')
+      if (session.status !== 'scheduled')
         return { ok: false, reason: 'not_scheduled' } as const;
       if (
         session.date === slot.date &&
@@ -272,7 +269,7 @@ export async function moveSession(
   }
 }
 
-/** "Ajouter une séance": one extra session of an active group (spec 5.3). */
+/** "Ajouter une séance": one extra session of a group (spec 5.3). */
 export async function addSession(
   pool: Pool,
   teacherId: string,
@@ -286,7 +283,7 @@ export async function addSession(
   try {
     return await withTeacherLock(pool, teacherId, async (client) => {
       const group = await client.query(
-        `SELECT 1 FROM groups WHERE id = $1 AND teacher_id = $2 AND status = 'active'`,
+        `SELECT 1 FROM groups WHERE id = $1 AND teacher_id = $2`,
         [input.groupId, teacherId],
       );
       if (group.rows.length === 0)

@@ -26,11 +26,10 @@ export default async function MoveSessionPage({
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const session = await getSession(getPool(), user.id, id);
   if (!session) notFound();
-  // Only a session that is still to come, in an active group, in a fully active Dashboard.
+  // Only a session that is still to come, in a fully active Dashboard.
   if (
     access !== 'full' ||
     session.status !== 'scheduled' ||
-    session.groupStatus !== 'active' ||
     isPast(session, now)
   )
     redirect({ href: returnTo, locale: locale as Locale });

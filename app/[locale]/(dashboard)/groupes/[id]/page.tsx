@@ -4,10 +4,6 @@ import { notFound } from 'next/navigation';
 import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
 import { DeleteGroup } from '@/components/dashboard/DeleteGroup';
 import { SessionActions } from '@/components/dashboard/SessionActions';
-import {
-  archiveGroupAction,
-  restoreGroupAction,
-} from '../../dashboard-actions';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requireDashboard } from '@/lib/dashboard/context';
@@ -88,11 +84,7 @@ export default async function GroupPage({
       <header className="space-y-2">
         <p className="text-sm">
           <Link
-            href={
-              group.status === 'archived'
-                ? { pathname: '/groupes', query: { onglet: 'archives' } }
-                : '/groupes'
-            }
+            href="/groupes"
             className="text-primary underline underline-offset-2"
           >
             {t('back')}
@@ -105,11 +97,6 @@ export default async function GroupPage({
             style={{ backgroundColor: group.color }}
           />
           {group.name}
-          {group.status === 'archived' && (
-            <span className="rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted">
-              {t('archivedBadge')}
-            </span>
-          )}
         </h1>
       </header>
 
@@ -140,29 +127,12 @@ export default async function GroupPage({
 
       {canWrite && (
         <div className="flex flex-wrap items-center gap-2">
-          {group.status === 'active' ? (
-            <>
-              <Link
-                href={`/groupes/${group.id}/calendrier`}
-                className={buttonClass}
-              >
-                {tl('changeCalendar')}
-              </Link>
-              <form action={archiveGroupAction}>
-                <input type="hidden" name="groupId" value={group.id} />
-                <button type="submit" className={secondaryButtonClass}>
-                  {tl('archive')}
-                </button>
-              </form>
-            </>
-          ) : (
-            <form action={restoreGroupAction}>
-              <input type="hidden" name="groupId" value={group.id} />
-              <button type="submit" className={buttonClass}>
-                {tl('restore')}
-              </button>
-            </form>
-          )}
+          <Link
+            href={`/groupes/${group.id}/calendrier`}
+            className={buttonClass}
+          >
+            {tl('changeCalendar')}
+          </Link>
           <DeleteGroup groupId={group.id} groupName={group.name} />
         </div>
       )}
@@ -251,7 +221,7 @@ export default async function GroupPage({
                 <SessionActions
                   session={session}
                   returnTo={here}
-                  canWrite={canWrite && group.status === 'active'}
+                  canWrite={canWrite}
                   now={now}
                 />
               </li>

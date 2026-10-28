@@ -8,7 +8,6 @@ export type ConflictLine = {
   groupName: string;
   otherStart: string;
   otherEnd: string;
-  archived: boolean;
 };
 
 /**
@@ -33,9 +32,7 @@ export function ConflictList({ lines }: { lines: ConflictLine[] }) {
             {t('line', {
               day: shortDay(line.date, locale),
               time: `${line.startTime}-${line.endTime}`,
-              group: line.archived
-                ? `${line.groupName} (${t('archived')})`
-                : line.groupName,
+              group: line.groupName,
               existing: `${line.otherStart}-${line.otherEnd}`,
             })}
           </li>
