@@ -7,6 +7,7 @@ import { StatusBanner } from '@/components/profile/StatusBanner';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requirePermission } from '@/lib/auth/current-user';
+import { dashboardAccess, getEntitlements } from '@/lib/billing/entitlements';
 import { getPool } from '@/lib/db/client';
 import { formatNationalPhone } from '@/lib/phone';
 import { loadProfile } from '@/lib/profile/repo';
@@ -32,6 +33,12 @@ export default async function TeacherHomePage({
   const ta = await getTranslations('auth.space');
   const tsub = await getTranslations('subscription');
   const treviews = await getTranslations('teacherReviews');
+  const tdash = await getTranslations('dashboard');
+  const hasDashboard =
+    dashboardAccess(
+      (await getEntitlements(getPool(), user.id))?.dashboardUntil ?? null,
+      new Date(),
+    ) !== 'none';
   const profile = await loadProfile(getPool(), user.id);
   const status = profile?.status ?? 'draft';
 
@@ -117,6 +124,11 @@ export default async function TeacherHomePage({
           >
             {tsub('link')}
           </Link>
+          {hasDashboard && (
+            <Link href="/groupes" className={secondaryButtonClass}>
+              {tdash('open')}
+            </Link>
+          )}
           {status === 'approved' && (
             <Link
               href="/espace-professeur/avis"

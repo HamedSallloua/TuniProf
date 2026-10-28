@@ -951,5 +951,273 @@
       "not_found": "Message introuvable ou déjà traité.",
       "forbidden": "Action non autorisée."
     }
+  },
+  "dashboard": {
+    "open": "Mon Dashboard",
+    "readOnly": "Votre Dashboard est en lecture seule jusqu'au {date}. Vous pouvez tout consulter, mais plus rien modifier. Renouvelez votre abonnement pour reprendre.",
+    "nav": {
+      "label": "Navigation du Dashboard",
+      "groups": "Groupes",
+      "calendar": "Calendrier"
+    },
+    "conflict": {
+      "title": "{count, plural, one {# conflit à corriger} other {# conflits à corriger}}",
+      "line": "{day} {time} chevauche {group} {existing}",
+      "archived": "archivé"
+    },
+    "flash": {
+      "cancelled": "Séance supprimée. Vous pouvez la restaurer.",
+      "restored": "Séance restaurée.",
+      "moved": "Séance déplacée.",
+      "added": "Séance ajoutée."
+    },
+    "sessionErrors": {
+      "not_found": "Cette séance n'existe plus.",
+      "past": "Cette séance est passée : elle ne peut plus être modifiée.",
+      "not_scheduled": "Cette séance n'est pas dans l'état attendu (déjà supprimée ou restaurée).",
+      "invalid": "Date ou heures invalides : la fin doit être après le début.",
+      "unchanged": "Rien n'a changé.",
+      "new_slot_in_past": "La nouvelle date est déjà passée.",
+      "group_not_found": "Ce groupe n'est pas disponible (archivé ou supprimé).",
+      "conflict": "Cette séance chevauche une autre séance.",
+      "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
+      "no_access": "Votre Dashboard n'est plus actif.",
+      "not_signed_in": "Reconnectez-vous pour continuer."
+    }
+  },
+  "groups": {
+    "list": {
+      "title": "Groupes",
+      "create": "Créer un groupe",
+      "tabs": "Groupes actifs ou archivés",
+      "active": "Actifs",
+      "archived": "Archivés",
+      "searchLabel": "Rechercher un groupe",
+      "searchPlaceholder": "Nom ou prix",
+      "noResults": "Aucun groupe ne correspond.",
+      "empty": "Vous n'avez pas encore de groupe. Créez le premier pour générer vos séances.",
+      "emptyArchived": "Aucun groupe archivé.",
+      "noPrice": "Pas de prix de référence",
+      "priceSession": "{price} par séance",
+      "priceMonth": "{price} par mois",
+      "emptyBadge": "Groupe vide",
+      "matchName": "Nom",
+      "matchPrice": "Prix",
+      "open": "Ouvrir",
+      "changeCalendar": "Modifier calendrier",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "flash": {
+        "archived": "Groupe archivé. Il a disparu du calendrier ; son historique est conservé.",
+        "restored": "Groupe restauré.",
+        "name_taken": "Un autre groupe actif porte déjà ce nom : renommez-le avant de restaurer celui-ci.",
+        "error": "L'action n'a pas pu être faite."
+      }
+    },
+    "delete": {
+      "button": "Supprimer",
+      "title": "Supprimer le groupe « {name} » ?",
+      "body": "Cette action est définitive : le groupe et toutes ses séances seront supprimés.",
+      "recommend": "Pour garder l'historique, utilisez plutôt « Archiver ».",
+      "typeName": "Tapez le nom du groupe pour confirmer",
+      "confirm": "Supprimer définitivement",
+      "cancel": "Annuler",
+      "errors": {
+        "invalid": "Demande invalide.",
+        "not_found": "Ce groupe n'existe plus.",
+        "name_mismatch": "Le nom tapé ne correspond pas.",
+        "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
+        "no_access": "Votre Dashboard n'est plus actif.",
+        "not_signed_in": "Reconnectez-vous pour continuer."
+      }
+    },
+    "wizard": {
+      "title": "Créer un groupe",
+      "stepOf": "Étape {current} sur {total}",
+      "steps": {
+        "name": "Nom",
+        "period": "Période",
+        "pattern": "Séances",
+        "price": "Prix"
+      },
+      "nameLabel": "Nom du groupe",
+      "nameHint": "2 à 50 caractères, différent de vos autres groupes actifs.",
+      "nameError": "Le nom doit contenir entre 2 et 50 caractères.",
+      "startLabel": "Début",
+      "endLabel": "Fin",
+      "schoolYear": "Année scolaire en cours",
+      "periodErrors": {
+        "invalid_date": "Choisissez une date de début et une date de fin.",
+        "end_before_start": "La fin doit être le même jour ou après le début.",
+        "too_long": "La période ne peut pas dépasser 14 mois."
+      },
+      "periodSummary": "{start} → {end}, {days, plural, one {# jour} other {# jours}}",
+      "patternTitle": "Séances de la semaine",
+      "patternHint": "Cochez les jours, puis choisissez 1 à 3 séances par jour avec leur heure de début et de fin.",
+      "slotsCount": "Nombre de séances",
+      "slotLabel": "Séance {n}",
+      "startTime": "Début",
+      "endTime": "Fin",
+      "ruleErrors": {
+        "none": "Cochez au moins un jour de la semaine.",
+        "weekday": "Jour invalide.",
+        "slot": "Numéro de séance invalide.",
+        "time_format": "Heure invalide.",
+        "end_before_start": "L'heure de fin doit être après l'heure de début.",
+        "overlap_same_day": "Deux séances du même jour se chevauchent.",
+        "too_many_slots": "Trois séances par jour au maximum."
+      },
+      "previewTitle": "Aperçu du calendrier",
+      "previewHint": "Le petit nombre sous chaque jour est le total de séances de tous vos groupes. Touchez un jour pour voir sa journée.",
+      "legend": {
+        "newDay": "Nouvelles séances",
+        "conflictDay": "Conflit"
+      },
+      "loadingExisting": "Chargement de votre calendrier...",
+      "conflictsBlock": "Corrigez les conflits pour continuer.",
+      "dayOverlay": {
+        "newGroup": "Nouveau groupe",
+        "count": "{count, plural, =0 {aucune séance} one {# séance} other {# séances}}",
+        "close": "Fermer",
+        "empty": "Aucune séance ce jour.",
+        "timeline": "Chronologie de la journée"
+      },
+      "pricingLabel": "Modèle de prix",
+      "perSession": "Par séance",
+      "perMonth": "Par mois",
+      "priceLabel": "Prix de référence en DT (facultatif)",
+      "priceHint": "Une simple suggestion affichée à côté du montant de chaque élève. Elle ne change jamais ce qu'un élève doit.",
+      "priceError": "Écrivez un nombre, avec 3 décimales au plus (par exemple 20 ou 20,5).",
+      "summary": {
+        "title": "Récapitulatif",
+        "name": "Nom",
+        "period": "Période",
+        "pattern": "Semaine type",
+        "sessions": "Séances",
+        "sessionCount": "{count, plural, one {# séance sera créée} other {# séances seront créées}}"
+      },
+      "next": "Suivant",
+      "back": "Retour",
+      "create": "Créer le groupe",
+      "creating": "Création...",
+      "errors": {
+        "invalid_name": "Le nom doit contenir entre 2 et 50 caractères.",
+        "name_taken": "Un autre groupe actif porte déjà ce nom.",
+        "invalid_period": "La période est invalide.",
+        "invalid_rules": "Les séances de la semaine sont invalides.",
+        "invalid_price": "Le prix de référence est invalide.",
+        "invalid": "Des informations sont invalides.",
+        "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
+        "no_access": "Votre Dashboard n'est plus actif.",
+        "not_signed_in": "Reconnectez-vous pour continuer.",
+        "generic": "Le groupe n'a pas pu être créé. Réessayez."
+      }
+    },
+    "page": {
+      "back": "Retour aux groupes",
+      "archivedBadge": "Archivé",
+      "period": "Période",
+      "schedule": "Semaine type",
+      "price": "Prix de référence",
+      "students": "Élèves",
+      "noStudents": "Aucun élève dans ce groupe pour le moment.",
+      "sessions": "Séances",
+      "monthNav": "Mois",
+      "previousMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "noSessions": "Aucune séance ce mois-ci."
+    },
+    "change": {
+      "title": "Modifier le calendrier de « {name} »",
+      "intro": "Les changements s'appliquent à partir d'une date. Les séances passées ne sont jamais modifiées.",
+      "effective": "À partir du",
+      "effectiveHint": "Par défaut aujourd'hui. Pas avant aujourd'hui.",
+      "endDate": "Nouvelle date de fin",
+      "startFixed": "Le début du groupe ({date}) ne change pas.",
+      "reset": "Réinitialiser aussi les séances modifiées",
+      "resetHint": "Les séances déplacées ou supprimées une par une seront reconstruites selon la nouvelle semaine type. Les séances ajoutées sont toujours conservées.",
+      "preview": "Voir ce qui va changer",
+      "save": "Enregistrer le calendrier",
+      "saving": "Enregistrement...",
+      "previewResult": "{removed, plural, =0 {Aucune séance supprimée} one {# séance supprimée} other {# séances supprimées}}, {created, plural, =0 {aucune créée} one {# créée} other {# créées}}. Rien n'est enregistré tant que vous n'avez pas cliqué sur « Enregistrer ».",
+      "errors": {
+        "invalid_date": "La date doit être aujourd'hui ou plus tard.",
+        "invalid_period": "La date de fin est invalide (14 mois au plus depuis le début).",
+        "invalid_rules": "Les séances de la semaine sont invalides.",
+        "not_found": "Ce groupe n'existe plus.",
+        "archived": "Ce groupe est archivé : restaurez-le pour changer son calendrier.",
+        "invalid": "Des informations sont invalides.",
+        "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
+        "no_access": "Votre Dashboard n'est plus actif.",
+        "not_signed_in": "Reconnectez-vous pour continuer.",
+        "generic": "Le calendrier n'a pas pu être modifié. Réessayez."
+      }
+    }
+  },
+  "calendar": {
+    "title": "Calendrier",
+    "weekOf": "Semaine du {date}",
+    "views": {
+      "label": "Affichage",
+      "semaine": "Semaine",
+      "mois": "Mois",
+      "annee": "Année"
+    },
+    "filter": "Groupe",
+    "allGroups": "Tous les groupes",
+    "apply": "Filtrer",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "todayButton": "Aujourd'hui",
+    "sessionsCount": "{count, plural, =0 {aucune séance} one {# séance} other {# séances}}",
+    "upcoming": {
+      "title": "Prochaines séances",
+      "empty": "Aucune séance à venir aujourd'hui ou demain.",
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain"
+    },
+    "day": {
+      "close": "Fermer",
+      "empty": "Aucune séance ce jour.",
+      "timeline": "Chronologie de la journée",
+      "add": "Ajouter une séance"
+    },
+    "row": {
+      "cancel": "Supprimer",
+      "restore": "Restaurer",
+      "move": "Modifier date",
+      "locked": "Passée",
+      "cancelled": "Supprimée",
+      "moved": "Déplacée",
+      "extra": "Ajoutée"
+    },
+    "move": {
+      "title": "Modifier la date",
+      "current": "Séance actuelle : {group}, {day}, {time}",
+      "newDate": "Nouvelle date",
+      "start": "Début",
+      "end": "Fin",
+      "confirm": "Confirmer",
+      "back": "Retour",
+      "unsaved": {
+        "title": "Modifications non enregistrées",
+        "body": "Vous avez changé la date ou les heures sans confirmer. Que voulez-vous faire ?",
+        "save": "Enregistrer",
+        "leave": "Quitter sans enregistrer",
+        "cancel": "Annuler"
+      }
+    },
+    "add": {
+      "title": "Ajouter une séance",
+      "intro": "Une séance en plus, pour un groupe actif, à la date et à l'heure de votre choix.",
+      "noGroup": "Vous n'avez pas de groupe actif : créez-en un avant d'ajouter une séance.",
+      "createGroup": "Créer un groupe",
+      "group": "Groupe",
+      "date": "Date",
+      "start": "Début",
+      "end": "Fin",
+      "confirm": "Ajouter",
+      "back": "Retour"
+    }
   }
 }

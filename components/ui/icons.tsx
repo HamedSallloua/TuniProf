@@ -62,3 +62,29 @@ export function ArrowIcon({ className = 'size-4' }: IconProps) {
     </svg>
   );
 }
+
+export function UsersIcon({ className = 'size-5' }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6M18 20a5 5 0 0 0-3-4.6" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ className = 'size-5' }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M9 3v4M15 3v4" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ className = 'size-4' }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
