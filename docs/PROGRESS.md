@@ -1,4 +1,4 @@
-## Status: M9 and its first follow-up round are pushed (02004e1); the second to fifth follow-up rounds are done locally (not committed, not pushed, checked in a browser); waiting for the owner's review and "go" for M10 (updated 2026-10-29).
+## Status: M9 and its follow-up rounds 1 to 5 are pushed (c4ee1f6), Arabic texts approved, migrations 0019 to 0021 applied on the development and test databases; waiting for the owner's review and "go" for M10 (updated 2026-10-29).
 
 Everything that must happen before production is collected in `docs/PRE_PRODUCTION_NOTES.md` (kept up to date with every change).
 
