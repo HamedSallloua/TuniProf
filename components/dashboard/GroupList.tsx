@@ -24,6 +24,8 @@ export type GroupRowData = {
   priceText: string;
   /** The digits of the price, for the search: "20000". */
   priceDigits: string;
+  /** "Prochaine séance : lundi 2 novembre, 08:00-10:00", or empty when none is coming. */
+  nextSessionText: string;
   /** The students in the group now: how many, their names and the digits of their phones. */
   studentCount: number;
   studentNames: string[];
@@ -120,6 +122,20 @@ export function GroupList({
                   </p>
                   <p className="text-sm text-muted">
                     {row.priceText || t('noPrice')}
+                  </p>
+                  <p
+                    className={
+                      'text-sm ' +
+                      (row.nextSessionText
+                        ? 'font-medium text-primary'
+                        : 'text-muted')
+                    }
+                  >
+                    {row.nextSessionText ? (
+                      <bdi>{row.nextSessionText}</bdi>
+                    ) : (
+                      t('noUpcoming')
+                    )}
                   </p>
                   <p className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">

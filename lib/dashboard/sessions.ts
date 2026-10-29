@@ -361,3 +361,36 @@ export async function addSession(
     throw error;
   }
 }
+
+/**
+ * For each group, its next session that is not over yet (today's later ones included), for the
+ * "Prochaine séance" line of the groups list. A group without one is not in the map.
+ */
+export async function nextSessionByGroup(
+  db: Queryable,
+  teacherId: string,
+  now: Date,
+): Promise<Map<string, { date: string; startTime: string; endTime: string }>> {
+  const today = tunisNow(now);
+  const { rows } = await db.query<{
+    group_id: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>(
+    `SELECT DISTINCT ON (group_id) group_id, date::text AS date,
+            to_char(start_time, 'HH24:MI') AS start_time,
+            to_char(end_time, 'HH24:MI') AS end_time
+       FROM sessions
+      WHERE teacher_id = $1
+        AND (date > $2::date OR (date = $2::date AND end_time > $3::time))
+      ORDER BY group_id, date, start_time`,
+    [teacherId, today.date, today.time],
+  );
+  return new Map(
+    rows.map((r) => [
+      r.group_id,
+      { date: r.date, startTime: r.start_time, endTime: r.end_time },
+    ]),
+  );
+}

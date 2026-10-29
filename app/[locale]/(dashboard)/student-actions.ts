@@ -63,8 +63,6 @@ const newStudentSchema = z.object({
   phone: z.string().max(40).optional(),
   note: z.string().max(1000).optional(),
   groupId: uuid.nullable().optional(),
-  // "Créer quand même" after the duplicate warning.
-  force: z.boolean().optional(),
 });
 
 export async function createStudentAction(
@@ -74,10 +72,9 @@ export async function createStudentAction(
   if (!who.ok) return who;
   const parsed = newStudentSchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: 'invalid' };
-  const { groupId, force, ...student } = parsed.data;
+  const { groupId, ...student } = parsed.data;
   const result = await createStudent(getPool(), who.user.id, student, {
     groupId: groupId ?? null,
-    force: force === true,
   });
   if (result.ok) revalidate();
   return result;
@@ -189,7 +186,6 @@ const listChangeSchema = z.object({
         fullName: z.string().max(200),
         phone: z.string().max(40).optional(),
         note: z.string().max(1000).optional(),
-        force: z.boolean().optional(),
       }),
     )
     .max(MAX_LIST_CHANGES)

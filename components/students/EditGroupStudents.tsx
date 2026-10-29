@@ -13,12 +13,14 @@ import type { StudentRow } from '@/lib/dashboard/students';
 import { formatNationalPhone } from '@/lib/phone';
 import { cleanStudent } from '@/lib/students/clean';
 import { AddStudentOverlay } from './AddStudentOverlay';
-import type { GroupMember } from './StudentRowCard';
+import { ContactLinks } from './ContactLinks';
+import { StudentActions } from './StudentActions';
+import type { GroupMember } from './student-types';
 import { useStudentSearch } from './use-student-search';
 
 /** What is typed for one student; the phone without +216, as when it is edited. */
 type Draft = { fullName: string; phone: string; note: string };
-type NewRow = Draft & { key: number; force: boolean };
+type NewRow = Draft & { key: number };
 
 const originalOf = (member: StudentRow): Draft => ({
   fullName: member.fullName,
@@ -45,12 +47,15 @@ export function EditGroupStudents({
   members,
   students,
   serverMode,
+  allGroups,
 }: {
   group: { id: string; name: string; color: string };
   members: GroupMember[];
   /** For the "Ajouter des élèves" overlay: every student (or the first ones, in server mode). */
   students: StudentRow[];
   serverMode: boolean;
+  /** For "Déplacer" and "Ajouter à un autre groupe" on the student cards. */
+  allGroups: { id: string; name: string; color: string }[];
 }) {
   const t = useTranslations('students');
   const router = useRouter();
@@ -133,7 +138,6 @@ export function EditGroupStudents({
           fullName: r.fullName,
           phone: r.phone,
           note: r.note,
-          force: r.force || undefined,
         })),
         editedStudents: changed.map((m) => ({
           studentId: m.id,
@@ -147,8 +151,14 @@ export function EditGroupStudents({
       }
       if (result.ok) return;
       if (result.reason === 'duplicate' && 'existing' in result) {
-        const row = rows[result.index];
-        if (row) setDuplicates({ [row.key]: result.existing });
+        if (result.list === 'new') {
+          const row = rows[result.index];
+          if (row) setDuplicates({ [row.key]: result.existing });
+        } else {
+          setRowErrors({
+            [`edited:${changed[result.index]?.id}`]: 'duplicate',
+          });
+        }
         return;
       }
       if ('list' in result && result.list && typeof result.index === 'number') {
@@ -171,14 +181,6 @@ export function EditGroupStudents({
       added.some((a) => a.id === existing.id);
     if (!inGroup) setAdded((current) => [...current, existing]);
     stagedChange();
-  }
-
-  function createAnyway(row: NewRow) {
-    const next = fresh.map((r) =>
-      r.key === row.key ? { ...r, force: true } : r,
-    );
-    setFresh(next);
-    save(next);
   }
 
   function reset() {
@@ -308,6 +310,9 @@ export function EditGroupStudents({
             ({members.length})
           </span>
         </h2>
+        {members.length > 0 && (
+          <p className="text-sm text-muted">{t('rowActionsHint')}</p>
+        )}
         {members.length === 0 ? (
           <p className="rounded-card border border-border bg-surface p-4 text-muted">
             {t('noStudentsInGroup')}
@@ -399,6 +404,14 @@ export function EditGroupStudents({
                       {problemText(edited ? problemOf(draft) : null)}
                       {problemText(serverProblem)}
                       <div className="flex flex-wrap items-center gap-3">
+                        <ContactLinks phone={member.phone} />
+                        {edited && (
+                          <span className="rounded-full border border-primary px-2 py-0.5 text-xs text-primary">
+                            {t('changedBadge')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                         <button
                           type="button"
                           className={secondaryButtonClass}
@@ -409,11 +422,11 @@ export function EditGroupStudents({
                         >
                           {t('removeFromGroup')}
                         </button>
-                        {edited && (
-                          <span className="rounded-full border border-primary px-2 py-0.5 text-xs text-primary">
-                            {t('changedBadge')}
-                          </span>
-                        )}
+                        <StudentActions
+                          member={member}
+                          groupId={group.id}
+                          allGroups={allGroups}
+                        />
                       </div>
                     </>
                   )}
@@ -482,9 +495,7 @@ export function EditGroupStudents({
             {fresh.map((row) => {
               const update = (patch: Partial<Draft>) => {
                 setFresh((c) =>
-                  c.map((r) =>
-                    r.key === row.key ? { ...r, ...patch, force: false } : r,
-                  ),
+                  c.map((r) => (r.key === row.key ? { ...r, ...patch } : r)),
                 );
                 stagedChange();
               };
@@ -534,14 +545,6 @@ export function EditGroupStudents({
                           onClick={() => takeExisting(row, duplicate)}
                         >
                           {t('useExisting')}
-                        </button>
-                        <button
-                          type="button"
-                          className={secondaryButtonClass}
-                          disabled={pending}
-                          onClick={() => createAnyway(row)}
-                        >
-                          {t('createAnyway')}
                         </button>
                       </div>
                     </div>
@@ -606,10 +609,7 @@ export function EditGroupStudents({
               stagedChange();
             },
             onAddNew: (input) => {
-              setFresh((current) => [
-                ...current,
-                { ...input, key: nextKey, force: false },
-              ]);
+              setFresh((current) => [...current, { ...input, key: nextKey }]);
               setNextKey((n) => n + 1);
               stagedChange();
             },

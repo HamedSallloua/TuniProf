@@ -1,7 +1,13 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from 'react';
 import {
   changeCalendarAction,
   loadScheduledAction,
@@ -9,7 +15,6 @@ import {
 import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
 import { useRouter } from '@/i18n/navigation';
 import {
-  addMonths,
   endOfMonth,
   isPast,
   monthOf,
@@ -19,6 +24,7 @@ import {
 import { formatDay } from '@/lib/dashboard/format';
 import {
   findConflicts,
+  overlaps,
   sameSlot,
   validatePeriod,
   validateRules,
@@ -30,7 +36,8 @@ import {
 import { ConflictList } from './ConflictList';
 import { DayPicker } from './DayPicker';
 import type { TimelineItem } from './DayTimeline';
-import { GroupCalendarPreview } from './GroupCalendarPreview';
+import { GroupMonthCalendar } from './GroupMonthCalendar';
+import { MonthNav } from './MonthNav';
 import { toConflictLines } from './GroupWizard';
 import {
   dayErrorsOf,
@@ -52,7 +59,10 @@ type SavedSession = SessionDraft & {
  *  - Every group: touch a day of the calendar to add a session on that exact day, or to edit
  *    (date and times) or delete one of its sessions. Nothing is saved until "Enregistrer".
  *  - A group with a weekly pattern also gets the pattern and the end date, rebuilt FROM an
- *    effective date; sessions moved one by one are kept unless the box is ticked.
+ *    effective date; sessions moved one by one are always kept.
+ *  - Order on the page: ONE month of calendar (any month: the arrows and the search are in the
+ *    sessions list, `children`, drawn by the server, and move both), then the pattern and the
+ *    buttons.
  *  - A group whose days were picked in a calendar has no pattern: only the calendar.
  * Past sessions are never touched. "Voir ce qui va changer" runs the pattern change without
  * saving it, and the calendar then marks the days it would add and remove.
@@ -61,6 +71,9 @@ export function ChangeCalendarForm({
   group,
   sessions,
   today,
+  month,
+  searched,
+  children,
 }: {
   group: {
     id: string;
@@ -73,6 +86,12 @@ export function ChangeCalendarForm({
   /** The group's sessions as they are now. */
   sessions: SavedSession[];
   today: string;
+  /** "2026-11": the month drawn. It follows the arrows and the search of the sessions list. */
+  month: string;
+  /** The date typed in the search, ringed in the calendar. */
+  searched?: string;
+  /** The sessions list, shown right after the calendar. */
+  children?: ReactNode;
 }) {
   const t = useTranslations('groups.change');
   const tw = useTranslations('groups.wizard');
@@ -85,13 +104,10 @@ export function ChangeCalendarForm({
   const [days, setDays] = useState<Days>(() => daysFromRules(group.rules));
   const [effectiveDate, setEffectiveDate] = useState(today);
   const [endDate, setEndDate] = useState(group.endDate);
-  const [resetModified, setResetModified] = useState(false);
   // The day-by-day changes, kept here until "Enregistrer".
   const [added, setAdded] = useState<SessionDraft[]>([]);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [edited, setEdited] = useState<Record<string, SessionDraft>>({});
-  const [monthsBefore, setMonthsBefore] = useState(0);
-  const [monthsAfter, setMonthsAfter] = useState(0);
   const [openDay, setOpenDay] = useState<string | null>(null);
   const [preview, setPreview] = useState<{
     removed: SessionDraft[];
@@ -151,16 +167,18 @@ export function ChangeCalendarForm({
   }, [sessions, deletedIds, edited, added, now]);
 
   // ----------------------------------------------------------------- the months shown
+  // The teacher's other sessions are loaded for the whole span of the group (to catch overlaps).
   const months = useMemo(() => {
     const dates = [
       group.startDate,
       group.endDate,
       ...(weekly && !periodError ? [endDate] : []),
       ...view.map((s) => s.date),
+      `${month}-01`,
     ].sort();
     return monthsBetween(
-      addMonths(startOfMonth(dates[0]), -monthsBefore),
-      addMonths(startOfMonth(dates[dates.length - 1]), monthsAfter),
+      startOfMonth(dates[0]),
+      startOfMonth(dates[dates.length - 1]),
     );
   }, [
     group.startDate,
@@ -169,8 +187,7 @@ export function ChangeCalendarForm({
     periodError,
     endDate,
     view,
-    monthsBefore,
-    monthsAfter,
+    month,
   ]);
   const windowStart = `${months[0]}-01`;
   const windowEnd = endOfMonth(`${months[months.length - 1]}-01`);
@@ -210,6 +227,24 @@ export function ChangeCalendarForm({
   );
   const shownConflicts =
     serverConflicts.length > 0 ? serverConflicts : clientConflicts;
+
+  // Days where a session being added or edited overlaps a session of this same group.
+  const ownOverlapDays = useMemo(() => {
+    const days = new Set<string>();
+    view.forEach((a, i) => {
+      if (a.locked || (a.id && !(a.id in edited))) return;
+      view.forEach((b, j) => {
+        if (i !== j && a.date === b.date && overlaps(a, b)) days.add(a.date);
+      });
+    });
+    return [...days];
+  }, [view, edited]);
+  const otherCounts = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const session of others ?? [])
+      result[session.date] = (result[session.date] ?? 0) + 1;
+    return result;
+  }, [others]);
 
   // ------------------------------------------------------------------ the calendar below
   const counts = useMemo(() => {
@@ -307,7 +342,6 @@ export function ChangeCalendarForm({
           effectiveDate,
           endDate: weekly ? endDate : group.endDate,
           rules: weekly ? rules : [],
-          resetModified: weekly ? resetModified : false,
           addedSessions: added,
           deletedSessionIds: deletedIds,
           editedSessions: Object.entries(edited).map(([id, to]) => ({
@@ -380,6 +414,79 @@ export function ChangeCalendarForm({
           {t(`errors.${error}` as 'errors.generic')}
         </p>
       )}
+
+      <section aria-labelledby="change-preview" className="space-y-3">
+        <div>
+          <h2
+            id="change-preview"
+            className="text-lg font-semibold text-primary"
+          >
+            {tp('title')}
+          </h2>
+          <p className="text-sm text-muted">{t('calendarHint')}</p>
+        </div>
+
+        {dirty && (
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <p role="status">{t('adjustSummary', dayCount)}</p>
+            <button
+              type="button"
+              className={secondaryButtonClass}
+              onClick={undoDayChanges}
+            >
+              {t('adjustReset')}
+            </button>
+          </div>
+        )}
+
+        {others === null && (
+          <p role="status" className="text-sm text-muted">
+            {tw('loadingExisting')}
+          </p>
+        )}
+        {shownConflicts.length > 0 && (
+          <>
+            <ConflictList lines={toConflictLines(shownConflicts)} />
+            <p className="text-sm text-accent">{tw('conflictsBlock')}</p>
+          </>
+        )}
+
+        <MonthNav basePath={`/groupes/${group.id}/calendrier`} month={month} />
+
+        <GroupMonthCalendar
+          month={month}
+          locale={locale}
+          today={today}
+          ownCounts={counts}
+          otherCounts={otherCounts}
+          markedDate={searched}
+          added={[
+            ...(preview?.created.map((s) => s.date) ?? []),
+            ...added.map((s) => s.date),
+          ]}
+          removed={[
+            ...(preview?.removed.map((s) => s.date) ?? []),
+            ...sessions
+              .filter((s) => deletedIds.includes(s.id))
+              .map((s) => s.date),
+          ]}
+          conflictDays={[
+            ...clientConflicts.map((c) => c.draft.date),
+            ...ownOverlapDays,
+          ]}
+          onDayClick={setOpenDay}
+          labels={{
+            sessions: (count) => tcal('sessionsCount', { count }),
+            legendOwn: tp('legendOwn'),
+            legendOthers: tp('legendOthers'),
+            legendConflict: tp('legendConflict'),
+            legendAdded: tp('legendAdded'),
+            legendRemoved: tp('legendRemoved'),
+          }}
+        />
+      </section>
+
+      {children}
 
       {weekly && (
         <>
@@ -459,23 +566,6 @@ export function ChangeCalendarForm({
               <p className="text-sm text-accent">{tw('ruleErrors.none')}</p>
             )}
 
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={resetModified}
-                onChange={(e) => {
-                  setResetModified(e.target.checked);
-                  setPreview(null);
-                }}
-                className="mt-1 size-5 accent-primary"
-              />
-              <span>
-                <span className="font-medium">{t('reset')}</span>
-                <span className="block text-sm text-muted">
-                  {t('resetHint')}
-                </span>
-              </span>
-            </label>
             <p className="text-sm text-muted">{t('deletedNote')}</p>
           </section>
 
@@ -492,87 +582,6 @@ export function ChangeCalendarForm({
           )}
         </>
       )}
-
-      <section aria-labelledby="change-preview" className="space-y-3">
-        <div>
-          <h2
-            id="change-preview"
-            className="text-lg font-semibold text-primary"
-          >
-            {tp('title')}
-          </h2>
-          <p className="text-sm text-muted">{t('calendarHint')}</p>
-        </div>
-
-        {dirty && (
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <p role="status">{t('adjustSummary', dayCount)}</p>
-            <button
-              type="button"
-              className={secondaryButtonClass}
-              onClick={undoDayChanges}
-            >
-              {t('adjustReset')}
-            </button>
-          </div>
-        )}
-
-        {others === null && (
-          <p role="status" className="text-sm text-muted">
-            {tw('loadingExisting')}
-          </p>
-        )}
-        {shownConflicts.length > 0 && (
-          <>
-            <ConflictList lines={toConflictLines(shownConflicts)} />
-            <p className="text-sm text-accent">{tw('conflictsBlock')}</p>
-          </>
-        )}
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            disabled={months[0] <= monthOf(today)}
-            onClick={() => setMonthsBefore((n) => n + 1)}
-          >
-            {tw('showPreviousMonth')}
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={() => setMonthsAfter((n) => n + 1)}
-          >
-            {tw('showNextMonth')}
-          </button>
-        </div>
-
-        <GroupCalendarPreview
-          months={months}
-          counts={counts}
-          color={group.color}
-          locale={locale}
-          today={today}
-          added={[
-            ...(preview?.created.map((s) => s.date) ?? []),
-            ...added.map((s) => s.date),
-          ]}
-          removed={[
-            ...(preview?.removed.map((s) => s.date) ?? []),
-            ...sessions
-              .filter((s) => deletedIds.includes(s.id))
-              .map((s) => s.date),
-          ]}
-          conflictDays={clientConflicts.map((c) => c.draft.date)}
-          onDayClick={setOpenDay}
-          labels={{
-            sessions: (count) => tcal('sessionsCount', { count }),
-            legendSessions: tp('legend'),
-            legendAdded: tp('legendAdded'),
-            legendRemoved: tp('legendRemoved'),
-          }}
-        />
-      </section>
 
       <div className="flex flex-wrap gap-3">
         {weekly && (

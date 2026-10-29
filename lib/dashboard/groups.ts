@@ -129,8 +129,8 @@ export type GroupInput = {
   /** Sessions the pattern would make that the teacher edited in the wizard (origin `moved`). */
   movedSessions?: SlotMove[];
   pricingModel: PricingModel;
-  /** Millimes, or null when the teacher gave no reference price. */
-  referencePriceMillimes: number | null;
+  /** Millimes, more than zero: a group cannot be created without a price. */
+  referencePriceMillimes: number;
 };
 
 export type CreateGroupResult =
@@ -150,8 +150,10 @@ export type CreateGroupResult =
 
 function validPrice(value: number | null): boolean {
   return (
-    value === null ||
-    (Number.isInteger(value) && value >= 0 && value <= 10_000_000)
+    value !== null &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= 10_000_000
   );
 }
 
@@ -245,6 +247,33 @@ export async function createGroup(
       return { ok: false, reason: 'conflicts', conflicts: [] };
     throw error;
   }
+}
+
+// ----------------------------------------------------------------------------------- price
+
+/**
+ * "Modifier Prix": the model (per session or per month) and the amount. It is only a
+ * suggestion: it changes no amount already typed in any month (spec 5.8, rule 8).
+ */
+export async function updateGroupPrice(
+  pool: Pool,
+  teacherId: string,
+  groupId: string,
+  pricingModel: PricingModel,
+  referencePriceMillimes: number,
+): Promise<
+  { ok: true } | { ok: false; reason: 'invalid_price' | 'not_found' }
+> {
+  if (!validPrice(referencePriceMillimes))
+    return { ok: false, reason: 'invalid_price' };
+  const result = await pool.query(
+    `UPDATE groups SET pricing_model = $3, reference_price_millimes = $4
+      WHERE id = $1 AND teacher_id = $2`,
+    [groupId, teacherId, pricingModel, referencePriceMillimes],
+  );
+  return result.rowCount === 1
+    ? { ok: true }
+    : { ok: false, reason: 'not_found' };
 }
 
 // ---------------------------------------------------------------------------------- delete

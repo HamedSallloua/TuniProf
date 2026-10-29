@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { addSessionsAction } from '@/app/[locale]/(dashboard)/dashboard-actions';
 import {
@@ -13,10 +13,13 @@ import {
   addDays,
   isValidDate,
   isValidTime,
+  monthOf,
   timeToMinutes,
 } from '@/lib/dashboard/dates';
+import { formatDay } from '@/lib/dashboard/format';
 import { MAX_ADDED_SESSIONS } from '@/lib/dashboard/schedule';
 import { ConflictList, type ConflictLine } from './ConflictList';
+import { DayPicker } from './DayPicker';
 import { conflictLinesFor } from './MoveSessionForm';
 
 type Row = { key: number; date: string; startTime: string; endTime: string };
@@ -37,11 +40,13 @@ function rowIsValid(row: Row): boolean {
  */
 export function AddSessionForm({
   groups,
+  defaultGroupId,
   defaultDate,
   returnTo,
   today,
 }: {
   groups: { id: string; name: string }[];
+  defaultGroupId?: string;
   defaultDate: string;
   returnTo: string;
   today: string;
@@ -49,8 +54,9 @@ export function AddSessionForm({
   const t = useTranslations('calendar.add');
   const td = useTranslations('dashboard');
   const router = useRouter();
+  const locale = useLocale();
 
-  const [groupId, setGroupId] = useState(groups[0]?.id ?? '');
+  const [groupId, setGroupId] = useState(defaultGroupId ?? groups[0]?.id ?? '');
   const [rows, setRows] = useState<Row[]>([
     { key: 1, date: defaultDate, startTime: '08:00', endTime: '10:00' },
   ]);
@@ -199,22 +205,20 @@ export function AddSessionForm({
                 )}
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <label
-                    htmlFor={`add-date-${row.key}`}
-                    className="block font-medium"
-                  >
+                <div className="space-y-1 sm:col-span-3 md:col-span-1">
+                  <p className="font-medium">
                     {t('date')}
-                  </label>
-                  <input
-                    id={`add-date-${row.key}`}
-                    type="date"
-                    min={today}
-                    value={row.date}
-                    onChange={(e) =>
-                      patchRow(row.key, { date: e.target.value })
-                    }
-                    className={inputClass}
+                    {isValidDate(row.date) &&
+                      ` : ${formatDay(row.date, locale, { dateStyle: 'medium' })}`}
+                  </p>
+                  <DayPicker
+                    initialMonth={monthOf(
+                      isValidDate(row.date) ? row.date : today,
+                    )}
+                    minMonth={monthOf(today)}
+                    isSelected={(date) => date === row.date}
+                    isDisabled={(date) => date < today}
+                    onPick={(date) => patchRow(row.key, { date })}
                   />
                 </div>
                 <div className="space-y-1">

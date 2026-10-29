@@ -7,6 +7,7 @@ import {
   deleteGroup,
   getGroup,
   listGroups,
+  updateGroupPrice,
   type GroupInput,
 } from '@/lib/dashboard/groups';
 import { eachDate } from '@/lib/dashboard/dates';
@@ -19,6 +20,7 @@ import {
   listGroupSessions,
   listSessions,
   moveSession,
+  nextSessionByGroup,
   upcomingSessions,
 } from '@/lib/dashboard/sessions';
 import { clearAuthTables } from './auth-helpers';
@@ -67,7 +69,7 @@ const mondays = (
   endDate: end,
   rules: [rule(1, 1, from, to)],
   pricingModel: 'per_session',
-  referencePriceMillimes: null,
+  referencePriceMillimes: 20000,
 });
 
 describe.skipIf(!testDatabaseUrl)(
@@ -266,7 +268,7 @@ describe.skipIf(!testDatabaseUrl)(
           startDate: '2026-09-07',
           endDate: '2026-09-21',
           pricingModel: 'per_session',
-          referencePriceMillimes: null,
+          referencePriceMillimes: 20000,
           rules: [
             { weekday: 1, slotNo: 1, startTime: '08:00', endTime: '10:00' },
           ],
@@ -399,6 +401,19 @@ describe.skipIf(!testDatabaseUrl)(
             referencePriceMillimes: 1.5,
           }),
         ).toEqual({ ok: false, reason: 'invalid_price' });
+        // A group cannot be created without a price: zero and "no price" are refused.
+        expect(
+          await createGroup(pool, teacher, {
+            ...base,
+            referencePriceMillimes: 0,
+          }),
+        ).toEqual({ ok: false, reason: 'invalid_price' });
+        expect(
+          await createGroup(pool, teacher, {
+            ...base,
+            referencePriceMillimes: null as unknown as number,
+          }),
+        ).toEqual({ ok: false, reason: 'invalid_price' });
 
         await make(teacher, base);
         expect(
@@ -423,6 +438,28 @@ describe.skipIf(!testDatabaseUrl)(
           name: 'Math 4ème',
           pricingModel: 'per_month',
           referencePriceMillimes: 20500,
+        });
+      });
+
+      it('"Modifier Prix" changes the model and the amount, refuses a missing or bad price, and only for the own group', async () => {
+        const id = await make(teacher, mondays('2026-09-07', '2026-09-28'));
+        expect(
+          await updateGroupPrice(pool, teacher, id, 'per_month', 150000),
+        ).toEqual({ ok: true });
+        expect(await getGroup(pool, teacher, id)).toMatchObject({
+          pricingModel: 'per_month',
+          referencePriceMillimes: 150000,
+        });
+        for (const bad of [0, -5, 2.5, null as unknown as number])
+          expect(
+            await updateGroupPrice(pool, teacher, id, 'per_session', bad),
+          ).toEqual({ ok: false, reason: 'invalid_price' });
+        expect(
+          await updateGroupPrice(pool, other, id, 'per_session', 10000),
+        ).toEqual({ ok: false, reason: 'not_found' });
+        expect(await getGroup(pool, teacher, id)).toMatchObject({
+          pricingModel: 'per_month',
+          referencePriceMillimes: 150000,
         });
       });
 
@@ -973,6 +1010,43 @@ describe.skipIf(!testDatabaseUrl)(
       });
     });
 
+    describe('"Prochaine séance" of each group', () => {
+      it('is the next session not over yet, per group, and absent for a group whose sessions are all over', async () => {
+        const a = await make(teacher, {
+          ...mondays('2026-09-07', '2026-09-30'),
+          name: 'Groupe A',
+          rules: [rule(1, 1, '08:00', '10:00'), rule(1, 2, '14:00', '16:00')],
+        });
+        const b = await make(teacher, {
+          ...mondays('2026-09-08', '2026-09-08'),
+          name: 'Groupe B',
+          rules: [rule(2, 1, '09:00', '10:00')],
+        });
+        await make(other, mondays('2026-09-07', '2026-09-07'));
+        const mondayMorning = new Date('2026-09-07T09:30:00Z'); // 10:30 in Tunis
+        const next = await nextSessionByGroup(pool, teacher, mondayMorning);
+        expect(next.get(a)).toEqual({
+          date: '2026-09-07',
+          startTime: '14:00',
+          endTime: '16:00',
+        });
+        expect(next.get(b)).toEqual({
+          date: '2026-09-08',
+          startTime: '09:00',
+          endTime: '10:00',
+        });
+        expect(next.size).toBe(2);
+        // After the last session of group B, only group A still has one.
+        const later = await nextSessionByGroup(
+          pool,
+          teacher,
+          new Date('2026-09-08T10:00:00Z'),
+        );
+        expect(later.has(b)).toBe(false);
+        expect(later.get(a)?.date).toBe('2026-09-14');
+      });
+    });
+
     // ------------------------------------------------------------------------- delete
 
     describe('deleting', () => {
@@ -1023,7 +1097,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-14',
             endDate: '2026-10-05',
             rules: [rule(1, 1, '14:00', '16:00')],
-            resetModified: false,
           },
           { now: noon },
         );
@@ -1056,7 +1129,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-21',
             endDate: '2026-10-07',
             rules: [rule(3, 1, '14:00', '16:00')],
-            resetModified: false,
           },
           { now },
         );
@@ -1077,7 +1149,7 @@ describe.skipIf(!testDatabaseUrl)(
         );
       });
 
-      it('keeps sessions moved one by one, unless the reset box is ticked; a deleted one comes back', async () => {
+      it('keeps sessions moved one by one and the extra one; a deleted one comes back', async () => {
         const group = await make(teacher, mondays('2026-09-07', '2026-10-12'));
         const sessions = await listSessions(
           pool,
@@ -1110,7 +1182,6 @@ describe.skipIf(!testDatabaseUrl)(
           effectiveDate: '2026-09-15',
           endDate: '2026-10-12',
           rules: [rule(1, 1, '09:00', '11:00')],
-          resetModified: false,
         };
         const kept = await changeCalendar(pool, teacher, group, change, {
           now,
@@ -1138,25 +1209,6 @@ describe.skipIf(!testDatabaseUrl)(
           endTime: '11:00',
           origin: 'rule',
         });
-
-        // With the reset box the modified ones are rebuilt too; the extra stays.
-        const reset = await changeCalendar(
-          pool,
-          teacher,
-          group,
-          { ...change, resetModified: true },
-          { now },
-        );
-        expect(reset.ok).toBe(true);
-        expect(await dates(group)).toEqual([
-          '2026-09-07',
-          '2026-09-14',
-          '2026-09-21',
-          '2026-09-28',
-          '2026-10-01',
-          '2026-10-05',
-          '2026-10-12',
-        ]);
       });
 
       it('a dry run says what would happen and changes nothing', async () => {
@@ -1170,7 +1222,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-21',
             endDate: '2026-10-05',
             rules: [rule(3, 1, '14:00', '16:00')],
-            resetModified: false,
           },
           { now, dryRun: true },
         );
@@ -1196,7 +1247,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-21',
             endDate: '2026-10-05',
             rules: [rule(3, 1, '14:00', '16:00')],
-            resetModified: false,
           },
           { now },
         );
@@ -1228,7 +1278,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-15',
             endDate: '2026-09-22',
             rules: [rule(1, 1, '08:00', '10:00')],
-            resetModified: false,
           },
           { now },
         );
@@ -1246,7 +1295,6 @@ describe.skipIf(!testDatabaseUrl)(
           effectiveDate: '2026-09-15',
           endDate: '2026-10-05',
           rules: [rule(1, 1, '08:00', '10:00')],
-          resetModified: false,
         };
         expect(
           await changeCalendar(
@@ -1300,7 +1348,7 @@ describe.skipIf(!testDatabaseUrl)(
         rules: [],
         customSessions: sessions,
         pricingModel: 'per_session',
-        referencePriceMillimes: null,
+        referencePriceMillimes: 20000,
       });
       const slot = (date: string, startTime = '08:00', endTime = '10:00') => ({
         date,
@@ -1388,7 +1436,7 @@ describe.skipIf(!testDatabaseUrl)(
           endDate: '2026-11-24',
           rules: [rule(7, 1, '08:00', '10:00')],
           pricingModel: 'per_session',
-          referencePriceMillimes: null,
+          referencePriceMillimes: 20000,
         });
         const NOV = new Date('2026-10-28T08:00:00Z');
         const originOf = async (groupId: string) =>
@@ -1540,7 +1588,6 @@ describe.skipIf(!testDatabaseUrl)(
               effectiveDate: '2026-10-29',
               endDate: '2026-11-24',
               rules: [rule(7, 1, '08:00', '10:00')],
-              resetModified: false,
             },
             { now: NOV },
           );
@@ -1594,7 +1641,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-08',
             endDate: '2026-09-30',
             rules: [rule(1, 1, '08:00', '10:00')],
-            resetModified: true,
           },
           { now },
         );
@@ -1619,7 +1665,6 @@ describe.skipIf(!testDatabaseUrl)(
           effectiveDate: '2026-09-08',
           endDate: '2026-09-30',
           rules: [],
-          resetModified: false,
         };
         const result = await changeCalendar(
           pool,
@@ -1664,7 +1709,6 @@ describe.skipIf(!testDatabaseUrl)(
         effectiveDate: '2026-09-08',
         endDate: '2026-09-28',
         rules: [rule(1, 1, '08:00', '10:00')],
-        resetModified: false,
         ...extra,
       });
       const idOf = async (group: string, date: string) =>
@@ -1898,7 +1942,6 @@ describe.skipIf(!testDatabaseUrl)(
             effectiveDate: '2026-09-08',
             endDate: '2026-09-21',
             rules: [rule(3, 1, '14:00', '16:00')],
-            resetModified: false,
           },
           { now, dryRun: true },
         );
@@ -1989,7 +2032,6 @@ describe.skipIf(!testDatabaseUrl)(
               effectiveDate: '2026-09-15',
               endDate: '2026-09-21',
               rules: [rule(2, 1, '08:00', '09:00')],
-              resetModified: true,
             },
             { now: NOW },
           ),

@@ -61,7 +61,7 @@ describe.skipIf(!testDatabaseUrl)('dashboard: students and memberships', () => {
       endDate: '2026-09-28',
       rules: [{ weekday, slotNo: 1, startTime: '08:00', endTime: '10:00' }],
       pricingModel: 'per_session',
-      referencePriceMillimes: null,
+      referencePriceMillimes: 20000,
     };
     const result = await createGroup(pool, owner, input, NOW);
     if (!result.ok) throw new Error(`group: ${result.reason}`);
@@ -178,7 +178,7 @@ describe.skipIf(!testDatabaseUrl)('dashboard: students and memberships', () => {
       ]);
     });
 
-    it('warns when the name and the phone are exactly those of an existing student, and "Créer quand même" creates it', async () => {
+    it('refuses a student with exactly the name and the phone of an existing student', async () => {
       const first = await makeStudent(teacher, 'Mohamed Ali', {
         phone: '22 345 678',
       });
@@ -194,15 +194,57 @@ describe.skipIf(!testDatabaseUrl)('dashboard: students and memberships', () => {
         existing: { id: first, fullName: 'Mohamed Ali' },
       });
       expect(await countStudents(pool, teacher)).toBe(1);
+    });
 
-      const forced = await createStudent(
-        pool,
-        teacher,
-        { fullName: 'Mohamed Ali', phone: '22 345 678' },
-        { force: true, now: NOW },
-      );
-      expect(forced.ok).toBe(true);
+    it('lets two students share a name without a phone, and the database refuses the pair as well', async () => {
+      await makeStudent(teacher, 'Mohamed Ali');
+      await makeStudent(teacher, 'Mohamed Ali');
       expect(await countStudents(pool, teacher)).toBe(2);
+      await makeStudent(teacher, 'Sarah', { phone: '22 345 678' });
+      await expect(
+        pool.query(
+          `INSERT INTO students (teacher_id, full_name, full_name_norm, phone, phone_digits)
+           SELECT teacher_id, full_name, full_name_norm, phone, phone_digits
+             FROM students WHERE phone IS NOT NULL`,
+        ),
+      ).rejects.toMatchObject({ code: '23505' });
+    });
+
+    it('refuses to change a student so that name AND phone equal another student, and allows one of the two', async () => {
+      const first = await makeStudent(teacher, 'Mohamed Ali', {
+        phone: '22 345 678',
+      });
+      const second = await makeStudent(teacher, 'Sarah', {
+        phone: '98 111 222',
+      });
+      // Both together, then each one alone completes the pair.
+      expect(
+        await updateStudent(pool, teacher, second, {
+          fullName: 'Mohamed Ali',
+          phone: '22 345 678',
+        }),
+      ).toMatchObject({
+        ok: false,
+        reason: 'duplicate',
+        existing: { id: first },
+      });
+      expect(
+        await updateStudent(pool, teacher, second, { fullName: 'Mohamed Ali' }),
+      ).toEqual({ ok: true });
+      expect(
+        await updateStudent(pool, teacher, second, { phone: '22 345 678' }),
+      ).toMatchObject({
+        ok: false,
+        reason: 'duplicate',
+        existing: { id: first },
+      });
+      expect((await getStudent(pool, teacher, second))?.phone).toBe(
+        '+21698111222',
+      );
+      // Saving a student without changing the pair is not a duplicate of themself.
+      expect(
+        await updateStudent(pool, teacher, first, { note: 'frère de Sarah' }),
+      ).toEqual({ ok: true });
     });
 
     it('does not warn for the same name with another phone, or for another teacher', async () => {
@@ -736,7 +778,7 @@ describe.skipIf(!testDatabaseUrl)('dashboard: students and memberships', () => {
       expect(await countStudents(pool, teacher)).toBe(2);
     });
 
-    it('warns about a new student identical to an existing one (with the row), creates nothing, and "Créer quand même" settles it', async () => {
+    it('refuses a new student identical to an existing one (with the row), and an edit that makes two students identical, and saves nothing', async () => {
       const group = await makeGroup(teacher, 'Groupe A');
       const first = await makeStudent(teacher, 'Mohamed Ali', {
         phone: '22 345 678',
@@ -756,15 +798,28 @@ describe.skipIf(!testDatabaseUrl)('dashboard: students and memberships', () => {
       });
       expect(await countStudents(pool, teacher)).toBe(1);
 
+      // An edit that copies another student's name and phone is refused with its row.
+      const sarah = await makeStudent(teacher, 'Sarah', {
+        phone: '98 111 222',
+      });
       expect(
         await save(group, {
-          newStudents: [
-            change.newStudents[0],
-            { ...change.newStudents[1], force: true },
+          editedStudents: [
+            { studentId: sarah, fullName: 'Mohamed Ali', phone: '22 345 678' },
           ],
         }),
-      ).toMatchObject({ ok: true, created: 2 });
-      expect(await countStudents(pool, teacher)).toBe(3);
+      ).toMatchObject({
+        ok: false,
+        reason: 'duplicate',
+        list: 'edited',
+        index: 0,
+        existing: { id: first },
+      });
+      expect((await getStudent(pool, teacher, sarah))?.fullName).toBe('Sarah');
+      // Without the copy, the rest of the list saves.
+      expect(
+        await save(group, { newStudents: [change.newStudents[0]] }),
+      ).toMatchObject({ ok: true, created: 1 });
     });
 
     it("refuses what is not allowed and changes nothing: a student already in the group, another group's membership, another teacher's rows", async () => {

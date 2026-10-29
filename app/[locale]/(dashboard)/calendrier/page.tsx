@@ -274,37 +274,35 @@ export default async function CalendarPage({
         <button type="submit" className={secondaryButtonClass}>
           {t('search.button')}
         </button>
+        <Link
+          href={url({ date: today, jour: null })}
+          className={secondaryButtonClass}
+        >
+          {t('todayButton')}
+        </Link>
       </form>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href={url({ date: step.prev, jour: null })}
+          className={secondaryButtonClass}
+          aria-label={t('previous')}
+        >
+          ‹
+        </Link>
         <h2
-          className="text-lg font-semibold text-primary first-letter:uppercase"
+          className="min-w-0 flex-1 text-center text-lg font-semibold text-primary first-letter:uppercase"
           aria-live="polite"
         >
           {title}
         </h2>
-        <div className="flex items-center gap-2">
-          <Link
-            href={url({ date: step.prev, jour: null })}
-            className={secondaryButtonClass}
-            aria-label={t('previous')}
-          >
-            ‹
-          </Link>
-          <Link
-            href={url({ date: today, jour: null })}
-            className={secondaryButtonClass}
-          >
-            {t('todayButton')}
-          </Link>
-          <Link
-            href={url({ date: step.next, jour: null })}
-            className={secondaryButtonClass}
-            aria-label={t('next')}
-          >
-            ›
-          </Link>
-        </div>
+        <Link
+          href={url({ date: step.next, jour: null })}
+          className={secondaryButtonClass}
+          aria-label={t('next')}
+        >
+          ›
+        </Link>
       </div>
 
       {vue === 'semaine' && (

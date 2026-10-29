@@ -192,9 +192,11 @@ export function GroupWizard({ today }: { today: string }) {
   const [now] = useState(() => new Date());
   const drafts = useMemo(() => withoutEnded(planned, now), [planned, now]);
   const skippedCount = planned.length - drafts.length;
+  // The price is required: a number above zero.
+  const parsedPrice = parseDinarsToMillimes(price);
   const priceMillimes =
-    price.trim() === '' ? null : parseDinarsToMillimes(price);
-  const priceInvalid = price.trim() !== '' && priceMillimes === null;
+    parsedPrice !== undefined && parsedPrice > 0 ? parsedPrice : null;
+  const priceInvalid = priceMillimes === null;
 
   // ------------------------------------------------------ the months of the preview calendar
   const months = useMemo(() => {
@@ -398,7 +400,7 @@ export function GroupWizard({ today }: { today: string }) {
         movedSessions:
           dayMode === 'weekly' && moved.length > 0 ? moved : undefined,
         pricingModel: pricing,
-        referencePriceMillimes: priceMillimes,
+        referencePriceMillimes: priceMillimes as number,
       });
       if (result.ok && 'groupId' in result) {
         router.push(`/groupes/${result.groupId}`);
@@ -486,7 +488,7 @@ export function GroupWizard({ today }: { today: string }) {
 
       {/* ----------------------------------------------------------------- 1. name */}
       {step === 0 && (
-        <section className="space-y-2">
+        <section className="space-y-2 rounded-card border border-border bg-surface p-4 sm:p-6">
           <label htmlFor="group-name" className="block font-medium">
             {t('nameLabel')}
           </label>
@@ -518,67 +520,74 @@ export function GroupWizard({ today }: { today: string }) {
       {/* --------------------------------------------------------------- 2. period */}
       {step === 1 && (
         <section className="space-y-5">
-          <fieldset className="space-y-2">
-            <legend className="font-medium">{t('dayMode.label')}</legend>
-            {(['weekly', 'calendar'] as const).map((mode) => (
-              <label key={mode} className="flex min-h-11 items-center gap-3">
-                <input
-                  type="radio"
-                  name="day-mode"
-                  checked={dayMode === mode}
-                  onChange={() => chooseDayMode(mode)}
-                  className="size-5 accent-primary"
-                />
-                {t(`dayMode.${mode}`)}
-              </label>
-            ))}
+          <fieldset className="space-y-2 rounded-card border border-border bg-surface p-4">
+            <legend className="px-1 font-medium">{t('dayMode.label')}</legend>
+            <div className="flex flex-col gap-1 sm:flex-row sm:gap-8">
+              {(['weekly', 'calendar'] as const).map((mode) => (
+                <label key={mode} className="flex min-h-11 items-center gap-3">
+                  <input
+                    type="radio"
+                    name="day-mode"
+                    checked={dayMode === mode}
+                    onChange={() => chooseDayMode(mode)}
+                    className="size-5 accent-primary"
+                  />
+                  {t(`dayMode.${mode}`)}
+                </label>
+              ))}
+            </div>
           </fieldset>
 
           {dayMode === 'weekly' ? (
-            <>
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4 rounded-card border border-border bg-surface p-4">
+              <fieldset className="space-y-1">
+                <legend className="font-medium">{t('endMode.label')}</legend>
+                <div className="flex flex-col gap-1 sm:flex-row sm:gap-8">
+                  {(['date', 'weeks'] as const).map((mode) => (
+                    <label
+                      key={mode}
+                      className="flex min-h-11 items-center gap-3"
+                    >
+                      <input
+                        type="radio"
+                        name="end-mode"
+                        checked={endMode === mode}
+                        onChange={() => setEndMode(mode)}
+                        className="size-5 accent-primary"
+                      />
+                      {t(`endMode.${mode}`)}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {/* Both columns start with a title line and then the calendar (or the weeks
+                  field), so the two calendars sit at the same height. */}
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <p className="font-medium">
+                  <p className="min-h-6 font-medium">
                     {t('startLabel')}
                     {startPicked !== '' &&
                       ` : ${formatDay(startPicked, locale, { dateStyle: 'medium' })}`}
                   </p>
-                  <DayPicker
-                    initialMonth={monthOf(startPicked || today)}
-                    isSelected={(date) => date === startPicked}
-                    isDisabled={() => false}
-                    onPick={setStartPicked}
-                  />
+                  <div className="mx-auto max-w-sm">
+                    <DayPicker
+                      initialMonth={monthOf(startPicked || today)}
+                      isSelected={(date) => date === startPicked}
+                      isDisabled={() => false}
+                      onPick={setStartPicked}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <fieldset className="space-y-1">
-                    <legend className="font-medium">
-                      {t('endMode.label')}
-                    </legend>
-                    {(['date', 'weeks'] as const).map((mode) => (
-                      <label
-                        key={mode}
-                        className="flex min-h-11 items-center gap-3"
-                      >
-                        <input
-                          type="radio"
-                          name="end-mode"
-                          checked={endMode === mode}
-                          onChange={() => setEndMode(mode)}
-                          className="size-5 accent-primary"
-                        />
-                        {t(`endMode.${mode}`)}
-                      </label>
-                    ))}
-                  </fieldset>
-                  {endMode === 'date' ? (
-                    <>
-                      <p className="font-medium">
-                        {t('endLabel')}
-                        {endPicked !== '' &&
-                          ` : ${formatDay(endPicked, locale, { dateStyle: 'medium' })}`}
-                      </p>
+                {endMode === 'date' ? (
+                  <div className="space-y-2">
+                    <p className="min-h-6 font-medium">
+                      {t('endLabel')}
+                      {endPicked !== '' &&
+                        ` : ${formatDay(endPicked, locale, { dateStyle: 'medium' })}`}
+                    </p>
+                    <div className="mx-auto max-w-sm">
                       <DayPicker
                         initialMonth={monthOf(
                           endPicked || startPicked || today,
@@ -589,46 +598,46 @@ export function GroupWizard({ today }: { today: string }) {
                         }
                         onPick={setEndPicked}
                       />
-                    </>
-                  ) : (
-                    <div className="space-y-1">
-                      <label
-                        htmlFor="group-weeks"
-                        className="block font-medium"
-                      >
-                        {t('weeksLabel')}
-                      </label>
-                      <input
-                        id="group-weeks"
-                        inputMode="numeric"
-                        dir="ltr"
-                        value={weeks}
-                        onChange={(e) => setWeeks(e.target.value)}
-                        className={inputClass + ' text-start sm:!w-32'}
-                        aria-describedby="group-weeks-hint"
-                      />
-                      <p
-                        id="group-weeks-hint"
-                        className={
-                          'text-sm ' +
-                          (weeks.trim() !== '' && weeksEnd === null
-                            ? 'text-accent'
-                            : 'text-muted')
-                        }
-                      >
-                        {weeks.trim() !== '' && weeksEnd === null
-                          ? t('weeksError', { max: MAX_PERIOD_WEEKS })
-                          : t('weeksHint', { max: MAX_PERIOD_WEEKS })}
-                      </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="group-weeks"
+                      className="block min-h-6 font-medium"
+                    >
+                      {t('weeksLabel')}
+                    </label>
+                    <input
+                      id="group-weeks"
+                      inputMode="numeric"
+                      dir="ltr"
+                      value={weeks}
+                      onChange={(e) => setWeeks(e.target.value)}
+                      className={inputClass + ' text-start sm:!w-32'}
+                      aria-describedby="group-weeks-hint"
+                    />
+                    <p
+                      id="group-weeks-hint"
+                      className={
+                        'text-sm ' +
+                        (weeks.trim() !== '' && weeksEnd === null
+                          ? 'text-accent'
+                          : 'text-muted')
+                      }
+                    >
+                      {weeks.trim() !== '' && weeksEnd === null
+                        ? t('weeksError', { max: MAX_PERIOD_WEEKS })
+                        : t('weeksHint', { max: MAX_PERIOD_WEEKS })}
+                    </p>
+                  </div>
+                )}
               </div>
               {end !== '' && (
                 <p
                   role="status"
                   className={
-                    'text-sm ' +
+                    'rounded-md bg-secondary p-3 text-sm ' +
                     (periodError ? 'text-accent' : 'font-medium text-primary')
                   }
                 >
@@ -637,9 +646,9 @@ export function GroupWizard({ today }: { today: string }) {
                     : periodText(start, end)}
                 </p>
               )}
-            </>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-card border border-border bg-surface p-4">
               <div>
                 <h2 className="text-lg font-semibold text-primary">
                   {t('custom.pickTitle')}
@@ -649,7 +658,7 @@ export function GroupWizard({ today }: { today: string }) {
                   {t('custom.pickedCount', { count: customDates.length })}
                 </p>
               </div>
-              <div className="max-w-md">
+              <div className="mx-auto max-w-sm">
                 <DayPicker
                   initialMonth={monthOf(today)}
                   minMonth={monthOf(today)}
@@ -663,7 +672,7 @@ export function GroupWizard({ today }: { today: string }) {
                 <p
                   role="status"
                   className={
-                    'text-sm ' +
+                    'rounded-md bg-secondary p-3 text-sm ' +
                     (periodError ? 'text-accent' : 'font-medium text-primary')
                   }
                 >
@@ -878,42 +887,55 @@ export function GroupWizard({ today }: { today: string }) {
       {/* --------------------------------------------------------------- 4. price */}
       {step === 3 && (
         <section className="space-y-5">
-          <fieldset className="space-y-2">
-            <legend className="font-medium">{t('pricingLabel')}</legend>
-            {(['per_session', 'per_month'] as const).map((model) => (
-              <label key={model} className="flex min-h-11 items-center gap-3">
-                <input
-                  type="radio"
-                  name="pricing"
-                  checked={pricing === model}
-                  onChange={() => setPricing(model)}
-                  className="size-5 accent-primary"
-                />
-                {t(model === 'per_session' ? 'perSession' : 'perMonth')}
+          <div className="space-y-4 rounded-card border border-border bg-surface p-4 sm:p-6">
+            <fieldset className="space-y-1">
+              <legend className="font-medium">{t('pricingLabel')}</legend>
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-8">
+                {(['per_session', 'per_month'] as const).map((model) => (
+                  <label
+                    key={model}
+                    className="flex min-h-11 items-center gap-3"
+                  >
+                    <input
+                      type="radio"
+                      name="pricing"
+                      checked={pricing === model}
+                      onChange={() => setPricing(model)}
+                      className="size-5 accent-primary"
+                    />
+                    {t(model === 'per_session' ? 'perSession' : 'perMonth')}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="space-y-1">
+              <label htmlFor="group-price" className="block font-medium">
+                {t('priceLabel')}
               </label>
-            ))}
-          </fieldset>
-          <div className="space-y-1">
-            <label htmlFor="group-price" className="block font-medium">
-              {t('priceLabel')}
-            </label>
-            <input
-              id="group-price"
-              inputMode="decimal"
-              dir="ltr"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className={inputClass + ' text-start sm:!w-48'}
-              aria-describedby="group-price-hint"
-            />
-            <p
-              id="group-price-hint"
-              className={
-                'text-sm ' + (priceInvalid ? 'text-accent' : 'text-muted')
-              }
-            >
-              {priceInvalid ? t('priceError') : t('priceHint')}
-            </p>
+              <input
+                id="group-price"
+                inputMode="decimal"
+                dir="ltr"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className={inputClass + ' text-start sm:!w-48'}
+                aria-describedby="group-price-hint"
+                aria-invalid={price.trim() !== '' && priceInvalid}
+              />
+              <p
+                id="group-price-hint"
+                className={
+                  'text-sm ' +
+                  (price.trim() !== '' && priceInvalid
+                    ? 'text-accent'
+                    : 'text-muted')
+                }
+              >
+                {price.trim() !== '' && priceInvalid
+                  ? t('priceError')
+                  : t('priceHint')}
+              </p>
+            </div>
           </div>
 
           <div className="rounded-card border border-border bg-surface p-4 text-sm">
@@ -945,7 +967,7 @@ export function GroupWizard({ today }: { today: string }) {
       )}
 
       {/* ----------------------------------------------------------- navigation bar */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
         {step > 0 && (
           <button
             type="button"

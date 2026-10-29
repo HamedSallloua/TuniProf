@@ -181,7 +181,7 @@ export function AddStudentOverlay({
     setMode('existing');
   }
 
-  function create(force: boolean) {
+  function create() {
     setError(null);
     if (stage) {
       // Nothing is created yet: the page checks the phone now and saves everything later.
@@ -199,7 +199,6 @@ export function AddStudentOverlay({
         phone,
         note,
         groupId,
-        force,
       });
       if (result.ok && 'studentId' in result) {
         router.push(
@@ -409,10 +408,9 @@ export function AddStudentOverlay({
                     <button
                       type="button"
                       className={secondaryButtonClass}
-                      disabled={pending}
-                      onClick={() => create(true)}
+                      onClick={() => setDuplicate(null)}
                     >
-                      {t('createAnyway')}
+                      {t('changeInfo')}
                     </button>
                   </div>
                 </div>
@@ -549,7 +547,7 @@ export function AddStudentOverlay({
                 type="button"
                 className={buttonClass}
                 disabled={pending}
-                onClick={() => create(false)}
+                onClick={create}
               >
                 {phone.trim() === '' ? t('skipAndConfirm') : t('confirm')}
               </button>

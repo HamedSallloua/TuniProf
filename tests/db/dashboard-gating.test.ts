@@ -91,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)(
           { weekday: 1, slotNo: 1, startTime: '08:00', endTime: '10:00' },
         ],
         pricingModel: 'per_session',
-        referencePriceMillimes: null,
+        referencePriceMillimes: 20000,
       });
       if (!made.ok) throw new Error(`group: ${made.reason}`);
       group = made.groupId;
@@ -149,7 +149,7 @@ describe.skipIf(!testDatabaseUrl)(
               rules: [],
               customSessions: [slot],
               pricingModel: 'per_session',
-              referencePriceMillimes: null,
+              referencePriceMillimes: 20000,
             }),
         ],
         [
@@ -168,7 +168,6 @@ describe.skipIf(!testDatabaseUrl)(
                     endTime: '10:00',
                   },
                 ],
-                resetModified: true,
                 addedSessions: [slot],
               },
               false,

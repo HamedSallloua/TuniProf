@@ -463,13 +463,13 @@
       "expired": "Expiré"
     },
     "checklist": {
-      "title": "À vérifier à chaque paiement",
       "1": "La référence (ou le numéro de téléphone) de la preuve correspond à une demande ouverte.",
       "2": "Le montant est celui de la formule, avec le Dashboard s'il a été choisi.",
       "3": "L'argent est bien visible dans l'historique Flouci / CCP / D17. N'acceptez jamais une capture d'écran seule : elle peut être falsifiée.",
       "4": "Le numéro et la date de transaction sont nouveaux. Notez-les : la même preuve ne sert pas deux fois.",
       "5": "Générez le code pour cette demande, envoyez-le, et le paiement passe à « vérifié ».",
-      "6": "Hors des horaires de réponse, annoncez « le lendemain matin »."
+      "6": "Hors des horaires de réponse, annoncez « le lendemain matin ».",
+      "title": "À vérifier à chaque paiement"
     },
     "form": {
       "transactionRef": "Numéro de transaction",
@@ -994,7 +994,7 @@
       "searchPlaceholder": "Nom ou prix",
       "noResults": "Aucun groupe ne correspond.",
       "empty": "Vous n'avez pas encore de groupe. Créez le premier pour générer vos séances.",
-      "noPrice": "Pas de prix de référence",
+      "noPrice": "Prix non défini",
       "priceSession": "{price} par séance",
       "priceMonth": "{price} par mois",
       "emptyBadge": "Groupe vide",
@@ -1006,7 +1006,9 @@
       "matchName": "Nom",
       "matchPrice": "Prix",
       "open": "Ouvrir",
-      "changeCalendar": "Modifier calendrier"
+      "changeCalendar": "Modifier calendrier",
+      "nextSession": "Prochaine séance : {date}, {time}",
+      "noUpcoming": "Aucune séance à venir"
     },
     "delete": {
       "button": "Supprimer",
@@ -1109,9 +1111,9 @@
       "pricingLabel": "Modèle de prix",
       "perSession": "Par séance",
       "perMonth": "Par mois",
-      "priceLabel": "Prix de référence en DT (facultatif)",
-      "priceHint": "Une simple suggestion affichée à côté du montant de chaque élève. Elle ne change jamais ce qu'un élève doit.",
-      "priceError": "Écrivez un nombre, avec 3 décimales au plus (par exemple 20 ou 20,5).",
+      "priceLabel": "Prix en DT",
+      "priceHint": "Obligatoire. Une simple suggestion affichée à côté du montant de chaque élève : elle ne change jamais ce qu'un élève doit.",
+      "priceError": "Écrivez un nombre supérieur à 0, avec 3 décimales au plus (par exemple 20 ou 20,5).",
       "summary": {
         "title": "Récapitulatif",
         "name": "Nom",
@@ -1130,7 +1132,7 @@
         "name_taken": "Un autre groupe porte déjà ce nom.",
         "invalid_period": "La période est invalide.",
         "invalid_rules": "Les séances de la semaine sont invalides.",
-        "invalid_price": "Le prix de référence est invalide.",
+        "invalid_price": "Le prix est obligatoire : indiquez un montant supérieur à 0.",
         "invalid": "Des informations sont invalides.",
         "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
         "no_access": "Votre Dashboard n'est plus actif.",
@@ -1190,6 +1192,22 @@
         "clear": "Effacer la recherche",
         "none": "Aucune séance de ce groupe le {date}.",
         "found": "{count, plural, one {# séance} other {# séances}} le {date}."
+      },
+      "overviewDays": "Période et jours",
+      "days": "Jours",
+      "noDays": "Aucun jour pour le moment.",
+      "showMoreDays": "Afficher plus ({count})",
+      "showFewerDays": "Afficher moins",
+      "priceEdit": {
+        "button": "Modifier Prix",
+        "title": "Prix du groupe",
+        "save": "Enregistrer le prix",
+        "saving": "Enregistrement...",
+        "cancel": "Annuler",
+        "errors": {
+          "invalid_price": "Le prix est obligatoire : indiquez un montant supérieur à 0.",
+          "generic": "Le prix n'a pas pu être modifié. Réessayez."
+        }
       }
     },
     "change": {
@@ -1205,8 +1223,6 @@
       "effectiveHint": "Par défaut aujourd'hui. Pas avant aujourd'hui.",
       "endDate": "Nouvelle date de fin",
       "startFixed": "Le début du groupe ({date}) ne change pas.",
-      "reset": "Réinitialiser aussi les séances modifiées",
-      "resetHint": "Les séances déplacées une par une seront reconstruites selon la nouvelle semaine type. Les séances ajoutées sont toujours conservées.",
       "preview": "Voir ce qui va changer",
       "save": "Enregistrer le calendrier",
       "saving": "Enregistrement...",
@@ -1234,7 +1250,11 @@
       "hint": "Seulement les séances de ce groupe, mois par mois.",
       "legend": "Jour avec séance",
       "legendAdded": "Séance ajoutée",
-      "legendRemoved": "Séance retirée"
+      "legendRemoved": "Séance retirée",
+      "empty": "Aucune séance dans ce groupe pour le moment.",
+      "legendOwn": "Jour avec une séance de ce groupe",
+      "legendOthers": "Jour avec des séances d'autres groupes",
+      "legendConflict": "Séance en conflit"
     }
   },
   "calendar": {
@@ -1360,9 +1380,9 @@
     "suggestionsTitle": "Cet élève existe peut-être déjà : touchez-le pour l'utiliser.",
     "useThisStudent": "Utiliser",
     "seeAll": "Voir tous les élèves",
-    "duplicateWarning": "Un élève avec le même nom et le même numéro existe déjà : {name}.",
+    "duplicateWarning": "Un élève avec le même nom et le même numéro existe déjà : {name}. Le même élève ne peut pas être créé deux fois.",
     "useExisting": "Utiliser l'élève existant",
-    "createAnyway": "Créer quand même",
+    "changeInfo": "Modifier les informations",
     "skipAndConfirm": "Passer et confirmer",
     "studentAdded": "« {name} » a été ajouté.",
     "filterGroup": "Groupe",
@@ -1412,7 +1432,7 @@
       "nothing_selected": "Choisissez au moins un élève ou un groupe.",
       "same_group": "L'élève est déjà dans ce groupe.",
       "name_mismatch": "Le nom tapé ne correspond pas.",
-      "duplicate": "Cet élève existe déjà.",
+      "duplicate": "Un autre élève a déjà ce nom et ce numéro.",
       "read_only": "Votre Dashboard est en lecture seule : aucune modification possible.",
       "no_access": "Votre Dashboard n'est plus actif.",
       "not_signed_in": "Reconnectez-vous pour continuer.",
@@ -1420,6 +1440,7 @@
       "membership_not_found": "Un élève n'est plus dans ce groupe : rechargez la page.",
       "too_many": "Trop de changements d'un coup.",
       "generic": "L'action n'a pas pu être faite. Réessayez."
-    }
+    },
+    "rowActionsHint": "« Retirer du groupe » et les champs sont enregistrés avec « Enregistrer la liste ». « Ajouter à un autre groupe », « Déplacer » et « Supprimer » s'appliquent tout de suite."
   }
 }

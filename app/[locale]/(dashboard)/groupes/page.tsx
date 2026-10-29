@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { getPool } from '@/lib/db/client';
 import { requireDashboard } from '@/lib/dashboard/context';
+import { nextSessionByGroup } from '@/lib/dashboard/sessions';
 import { formatDay, scheduleText } from '@/lib/dashboard/format';
 import { listGroups, type Group } from '@/lib/dashboard/groups';
 import {
@@ -27,7 +28,7 @@ export default async function GroupsPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale as Locale);
-  const { user, access } = await requireDashboard(locale as Locale);
+  const { user, access, now } = await requireDashboard(locale as Locale);
 
   const t = await getTranslations('groups.list');
   const groups = await listGroups(getPool(), user.id);
@@ -39,6 +40,7 @@ export default async function GroupsPage({
       ? await loadStudentPool(getPool(), user.id)
       : { students: [], total: 0, serverMode: false };
   const membersByGroup = await groupMemberIds(getPool(), user.id);
+  const nextSessions = await nextSessionByGroup(getPool(), user.id, now);
 
   const rows: GroupRowData[] = groups.map((group: Group) => ({
     id: group.id,
@@ -61,6 +63,18 @@ export default async function GroupsPage({
       group.referencePriceMillimes === null
         ? ''
         : String(group.referencePriceMillimes),
+    nextSessionText: (() => {
+      const next = nextSessions.get(group.id);
+      if (!next) return '';
+      return t('nextSession', {
+        date: formatDay(next.date, locale, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        }),
+        time: `${next.startTime}-${next.endTime}`,
+      });
+    })(),
     studentCount: counts.get(group.id) ?? 0,
     studentNames: (studentsByGroup.get(group.id) ?? []).map((s) => s.fullName),
     studentPhoneDigits: (studentsByGroup.get(group.id) ?? [])

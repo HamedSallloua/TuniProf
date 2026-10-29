@@ -167,3 +167,12 @@ All the texts are in `messages/fr.json` and `messages/ar.json` under `students`,
 | Rechercher dans ce groupe                    | البحث في هذه المجموعة                   |
 | Supprimer définitivement                     | حذف نهائي                               |
 | Depuis quel groupe ? / Vers quel groupe ?    | من أي مجموعة؟ / إلى أي مجموعة؟          |
+| Modifier Prix                                | تعديل السعر                             |
+| Prochaine séance                             | الحصة القادمة                           |
+| Aucune séance à venir                        | لا توجد حصص قادمة                       |
+| Prix non défini                              | السعر غير محدد                          |
+| Afficher plus / Afficher moins               | عرض المزيد / عرض أقل                    |
+| Aucune séance dans ce groupe pour le moment. | لا توجد حصص في هذه المجموعة حاليًا.     |
+| Jour avec une séance de ce groupe            | يوم فيه حصة من هذه المجموعة             |
+| Jour avec des séances d'autres groupes       | يوم فيه حصص من مجموعات أخرى             |
+| Séance en conflit                            | حصة متعارضة                             |

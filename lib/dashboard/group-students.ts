@@ -1,12 +1,11 @@
 import type { Pool } from 'pg';
-import { normalizeSearch } from '@/lib/text/normalize';
 import { tunisNow } from './dates';
 import { UNIQUE_VIOLATION, withTeacherLock } from './store';
 import {
-  attachGroups,
   cleanStudent,
   type CleanStudent,
   columnsOf,
+  findSameStudent,
   openMemberships,
   STUDENT_COLUMNS,
   type MembershipFailure,
@@ -27,8 +26,8 @@ export const MAX_LIST_CHANGES = 200;
 export type GroupStudentsChange = {
   /** Existing students who join the group. */
   addStudentIds?: string[];
-  /** New students, created and put in the group. `force` = "Créer quand même" after the warning. */
-  newStudents?: (StudentInput & { force?: boolean })[];
+  /** New students, created and put in the group. */
+  newStudents?: StudentInput[];
   /** Memberships of THIS group that end ("Retirer du groupe"); the history stays. */
   removeMembershipIds?: string[];
   /** Changed information; only the fields given change. */
@@ -59,7 +58,8 @@ export type SaveGroupStudentsResult =
   | {
       ok: false;
       reason: 'duplicate';
-      /** The new student (0-based) that looks like `existing`. */
+      /** The row (0-based) in the `list` that has the name and phone of `existing`. */
+      list: 'new' | 'edited';
       index: number;
       existing: StudentRow;
     };
@@ -73,8 +73,8 @@ class Abort extends Error {
 
 /**
  * Saves every change of the group's student list at once, or none of them (the answer says which
- * row is wrong). A new student with the same name and phone as an existing one is a warning
- * (`duplicate`), settled by `force` on that row, as in "Ajouter élève".
+ * row is wrong). A student (new or edited) who would have the same name AND phone as another
+ * student is refused (`duplicate`, with the existing student).
  */
 export async function saveGroupStudents(
   pool: Pool,
@@ -149,6 +149,20 @@ export async function saveGroupStudents(
             list: 'edited',
             index,
           });
+        const same = await findSameStudent(
+          client,
+          teacherId,
+          cleaned.value,
+          edit.studentId,
+        );
+        if (same)
+          return fail({
+            ok: false,
+            reason: 'duplicate',
+            list: 'edited',
+            index,
+            existing: same,
+          });
         const columns = columnsOf(cleaned.value);
         await client.query(
           `UPDATE students SET full_name = $3, full_name_norm = $4, phone = $5,
@@ -171,19 +185,15 @@ export async function saveGroupStudents(
       const createdIds: string[] = [];
       for (let index = 0; index < cleanedNew.length; index++) {
         const clean = cleanedNew[index];
-        if (!fresh[index].force) {
-          const same = await client.query<StudentDbRow>(
-            `SELECT ${STUDENT_COLUMNS} FROM students
-              WHERE teacher_id = $1 AND full_name_norm = $2
-                AND phone IS NOT DISTINCT FROM $3::text
-              ORDER BY id LIMIT 1`,
-            [teacherId, normalizeSearch(clean.fullName), clean.phone],
-          );
-          if (same.rows[0]) {
-            const [existing] = await attachGroups(client, teacherId, same.rows);
-            return fail({ ok: false, reason: 'duplicate', index, existing });
-          }
-        }
+        const existing = await findSameStudent(client, teacherId, clean);
+        if (existing)
+          return fail({
+            ok: false,
+            reason: 'duplicate',
+            list: 'new',
+            index,
+            existing,
+          });
         const columns = columnsOf(clean);
         const inserted = await client.query<{ id: string }>(
           `INSERT INTO students (teacher_id, full_name, full_name_norm, phone,

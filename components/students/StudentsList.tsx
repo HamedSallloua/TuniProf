@@ -17,7 +17,7 @@ import { AddStudentButton } from './AddStudentOverlay';
 import { ContactLinks } from './ContactLinks';
 import { GroupPickerDialog, type PickableGroup } from './GroupPickerDialog';
 import { DeleteStudentDialog, MoveStudentDialog } from './StudentDialogs';
-import { useHighlight } from './StudentRowCard';
+import { useHighlight } from './student-types';
 import { useStudentSearch } from './use-student-search';
 
 type GroupOption = { id: string; name: string; color: string };

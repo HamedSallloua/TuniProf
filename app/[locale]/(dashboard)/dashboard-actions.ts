@@ -12,6 +12,7 @@ import {
   changeCalendar,
   createGroup,
   deleteGroup,
+  updateGroupPrice,
   type CalendarChangeResult,
   type CreateGroupResult,
 } from '@/lib/dashboard/groups';
@@ -99,7 +100,7 @@ const groupSchema = z.object({
     .max(1000)
     .optional(),
   pricingModel: z.enum(['per_session', 'per_month']),
-  referencePriceMillimes: z.number().int().nullable(),
+  referencePriceMillimes: z.number().int(),
 });
 
 export async function createGroupAction(
@@ -110,6 +111,32 @@ export async function createGroupAction(
   const parsed = groupSchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: 'invalid' };
   const result = await createGroup(getPool(), who.user.id, parsed.data);
+  if (result.ok) revalidate();
+  return result;
+}
+
+/** "Modifier Prix" on the group page. */
+export async function updateGroupPriceAction(
+  groupId: string,
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const who = await writableTeacher();
+  if (!who.ok) return who;
+  const id = uuid.safeParse(groupId);
+  const parsed = z
+    .object({
+      pricingModel: z.enum(['per_session', 'per_month']),
+      referencePriceMillimes: z.number().int(),
+    })
+    .safeParse(input);
+  if (!id.success || !parsed.success) return { ok: false, reason: 'invalid' };
+  const result = await updateGroupPrice(
+    getPool(),
+    who.user.id,
+    id.data,
+    parsed.data.pricingModel,
+    parsed.data.referencePriceMillimes,
+  );
   if (result.ok) revalidate();
   return result;
 }
@@ -135,7 +162,6 @@ const changeSchema = z.object({
   effectiveDate: date,
   endDate: date,
   rules: z.array(rule).max(21),
-  resetModified: z.boolean(),
   // Day-by-day changes (see lib/dashboard/calendar-change.ts).
   addedSessions: z.array(slotSchema).max(500).optional(),
   deletedSessionIds: z.array(uuid).max(500).optional(),

@@ -370,16 +370,39 @@ export type CreateStudentResult =
   | { ok: false; reason: 'duplicate'; existing: StudentRow };
 
 /**
+ * The teacher's other student with exactly this name and this phone, if any. A student without
+ * a phone is never "the same" as another (two students may share a name). `exceptId` is the
+ * student being changed.
+ */
+export async function findSameStudent(
+  db: Queryable,
+  teacherId: string,
+  clean: CleanStudent,
+  exceptId?: string,
+): Promise<StudentRow | null> {
+  if (clean.phone === null) return null;
+  const same = await db.query<StudentDbRow>(
+    `SELECT ${STUDENT_COLUMNS} FROM students
+      WHERE teacher_id = $1 AND full_name_norm = $2 AND phone = $3
+        AND ($4::uuid IS NULL OR id <> $4)
+      ORDER BY id LIMIT 1`,
+    [teacherId, normalizeSearch(clean.fullName), clean.phone, exceptId ?? null],
+  );
+  if (!same.rows[0]) return null;
+  return (await attachGroups(db, teacherId, same.rows))[0];
+}
+
+/**
  * Creates a student, and when `groupId` is given a membership in that group, in one step
- * (spec 5.6 option 2, 5.7). A student with exactly the same name and phone already in the list
- * is a WARNING, not a block (two siblings may share a parent's phone): the answer says
- * "duplicate" with the existing student, and `force` creates it anyway.
+ * (spec 5.6 option 2, 5.7). A student with exactly the same name and phone number already in
+ * the list is REFUSED (owner's rule, 2nd round): the answer says "duplicate" with the existing
+ * student, who can be used instead. The database refuses it too (migration 0021).
  */
 export async function createStudent(
   pool: Pool,
   teacherId: string,
   input: StudentInput,
-  options: { groupId?: string | null; force?: boolean; now?: Date } = {},
+  options: { groupId?: string | null; now?: Date } = {},
 ): Promise<CreateStudentResult> {
   const cleaned = cleanStudent(input);
   if (!cleaned.ok) return cleaned;
@@ -395,19 +418,8 @@ export async function createStudent(
       if (group.rows.length === 0)
         return { ok: false, reason: 'group_not_found' } as const;
     }
-    if (!options.force) {
-      const same = await client.query<StudentDbRow>(
-        `SELECT ${STUDENT_COLUMNS} FROM students
-          WHERE teacher_id = $1 AND full_name_norm = $2
-            AND phone IS NOT DISTINCT FROM $3::text
-          ORDER BY id LIMIT 1`,
-        [teacherId, normalizeSearch(clean.fullName), clean.phone],
-      );
-      if (same.rows[0]) {
-        const [existing] = await attachGroups(client, teacherId, same.rows);
-        return { ok: false, reason: 'duplicate', existing } as const;
-      }
-    }
+    const existing = await findSameStudent(client, teacherId, clean);
+    if (existing) return { ok: false, reason: 'duplicate', existing } as const;
     const columns = columnsOf(clean);
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO students (teacher_id, full_name, full_name_norm, phone, phone_digits,
@@ -434,7 +446,9 @@ export async function createStudent(
 }
 
 export type UpdateStudentResult =
-  { ok: true } | Failure<StudentInputError | 'not_found'>;
+  | { ok: true }
+  | Failure<StudentInputError | 'not_found'>
+  | { ok: false; reason: 'duplicate'; existing: StudentRow };
 
 /**
  * Changes one or more fields of a student. The change applies everywhere the student appears
@@ -459,6 +473,14 @@ export async function updateStudent(
       note: patch.note ?? row.note ?? '',
     });
     if (!cleaned.ok) return cleaned;
+    // The new name and phone together must not be another student's name and phone.
+    const existing = await findSameStudent(
+      client,
+      teacherId,
+      cleaned.value,
+      studentId,
+    );
+    if (existing) return { ok: false, reason: 'duplicate', existing } as const;
     const columns = columnsOf(cleaned.value);
     await client.query(
       `UPDATE students SET full_name = $3, full_name_norm = $4, phone = $5, phone_digits = $6,

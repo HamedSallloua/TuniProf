@@ -40,8 +40,6 @@ export type CalendarChangeInput = {
   endDate: string;
   /** The weekly pattern; empty for a group whose days were picked in a calendar. */
   rules: Rule[];
-  /** "Réinitialiser aussi les séances modifiées": moved sessions are rebuilt too. */
-  resetModified: boolean;
   /** Sessions added on specific days (origin `manual`: the pattern never touches them). */
   addedSessions?: SessionDraft[];
   /** Future sessions of this group that are deleted for good. */
@@ -99,8 +97,8 @@ type TargetRow = {
 
 /**
  * Rebuilds the FUTURE of a group's calendar from an effective date (spec 5.3), but only when the
- * pattern, its end date or the "reset" box changed, and applies the day-by-day changes. Past sessions and sessions added by hand are never touched by the pattern;
- * sessions that were moved one by one are kept unless `resetModified` is true. A session deleted
+ * pattern or its end date changed, and applies the day-by-day changes. Past sessions, sessions
+ * added by hand and sessions moved one by one are never touched by the pattern. A session deleted
  * or edited in the same save is not made again by the pattern (its slot is skipped). With
  * `dryRun` nothing is changed: it only says what would happen and which conflicts would block
  * it (the screen shows this before saving).
@@ -168,8 +166,7 @@ export async function changeCalendar(
         return finish(client, { ok: false, reason: 'invalid_rules' } as const);
       if (hasPattern && validatePeriod(group.start_date, input.endDate))
         return finish(client, { ok: false, reason: 'invalid_period' } as const);
-      // The pattern is rebuilt only when the teacher changed it (or its end date, or asked to
-      // reset the moved sessions). A save that only touches days leaves every other session
+      // The pattern is rebuilt only when the teacher changed it (or its end date). A save that only touches days leaves every other session
       // alone: a day deleted earlier must not come back.
       const signature = (
         list: {
@@ -188,8 +185,7 @@ export async function changeCalendar(
           .join(';');
       const rebuild =
         hasPattern &&
-        (input.resetModified ||
-          input.endDate !== group.end_date ||
+        (input.endDate !== group.end_date ||
           signature(input.rules) !==
             signature(
               current.rows.map((r) => ({
@@ -248,22 +244,18 @@ export async function changeCalendar(
           .map((t) => t.original_date as string),
       );
 
-      // 1. What the pattern removes: the future sessions made by the old pattern, and (on
-      //    request) the ones the teacher had moved one by one. Added and hand-picked sessions
-      //    always stay. A session of today that is already over is history: it stays.
+      // 1. What the pattern removes: the future sessions made by the old pattern. Sessions
+      //    moved one by one, added and hand-picked sessions always stay. A session of today that is already over is history: it stays.
       let removedRows: SessionDraft[] = [];
       let generated: SessionDraft[] = [];
       if (rebuild) {
-        const removable = input.resetModified
-          ? `(origin = 'rule' OR origin = 'moved')`
-          : `origin = 'rule'`;
         const removed = await client.query<{
           date: string;
           start_time: string;
           end_time: string;
         }>(
           `DELETE FROM sessions
-            WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND ${removable}
+            WHERE group_id = $1 AND teacher_id = $2 AND date >= $3::date AND origin = 'rule'
               AND NOT (date = $4::date AND end_time <= $5::time)
         RETURNING date::text AS date, to_char(start_time, 'HH24:MI') AS start_time,
                   to_char(end_time, 'HH24:MI') AS end_time`,

@@ -15,7 +15,7 @@ export default async function AddSessionPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ date?: string; retour?: string }>;
+  searchParams: Promise<{ date?: string; retour?: string; groupe?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale as Locale);
@@ -29,8 +29,14 @@ export default async function AddSessionPage({
   const defaultDate =
     isValidDate(query.date) && query.date >= today ? query.date : today;
 
+  // "Ajouter une séance" from a group's page opens with that group chosen.
+  const defaultGroupId = groups.some((g) => g.id === query.groupe)
+    ? query.groupe
+    : undefined;
+
   return (
     <AddSessionForm
+      defaultGroupId={defaultGroupId}
       groups={groups.map((g) => ({ id: g.id, name: g.name }))}
       defaultDate={defaultDate}
       returnTo={returnTo}

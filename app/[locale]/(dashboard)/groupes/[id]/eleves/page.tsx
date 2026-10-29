@@ -5,7 +5,7 @@ import { EditGroupStudents } from '@/components/students/EditGroupStudents';
 import { redirect } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requireDashboard } from '@/lib/dashboard/context';
-import { getGroup } from '@/lib/dashboard/groups';
+import { getGroup, listGroups } from '@/lib/dashboard/groups';
 import { listGroupMembers, loadStudentPool } from '@/lib/dashboard/students';
 import { getPool } from '@/lib/db/client';
 
@@ -28,6 +28,7 @@ export default async function EditGroupStudentsPage({
 
   const members = await listGroupMembers(getPool(), user.id, group.id);
   const pool = await loadStudentPool(getPool(), user.id);
+  const allGroups = await listGroups(getPool(), user.id);
 
   return (
     <EditGroupStudents
@@ -35,6 +36,11 @@ export default async function EditGroupStudentsPage({
       members={members}
       students={pool.students}
       serverMode={pool.serverMode}
+      allGroups={allGroups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        color: g.color,
+      }))}
     />
   );
 }

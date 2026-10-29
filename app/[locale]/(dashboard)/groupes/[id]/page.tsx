@@ -1,55 +1,37 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import {
-  buttonClass,
-  inputClass,
-  secondaryButtonClass,
-} from '@/components/auth/styles';
+import { buttonClass, secondaryButtonClass } from '@/components/auth/styles';
 import { DeleteGroup } from '@/components/dashboard/DeleteGroup';
+import { EditGroupPrice } from '@/components/dashboard/EditGroupPrice';
 import { GroupCalendarPreview } from '@/components/dashboard/GroupCalendarPreview';
-import { SessionActions } from '@/components/dashboard/SessionActions';
-import { AddStudentButton } from '@/components/students/AddStudentOverlay';
-import { GroupMembers } from '@/components/students/GroupMembers';
+import { GroupDays } from '@/components/dashboard/GroupDays';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requireDashboard } from '@/lib/dashboard/context';
-import {
-  addMonths,
-  isValidDate,
-  monthOf,
-  monthsBetween,
-  tunisNow,
-} from '@/lib/dashboard/dates';
-import { formatDay, monthTitle, scheduleText } from '@/lib/dashboard/format';
-import { getGroup, listGroups } from '@/lib/dashboard/groups';
+import { monthOf, tunisNow } from '@/lib/dashboard/dates';
+import { formatDay } from '@/lib/dashboard/format';
+import { getGroup } from '@/lib/dashboard/groups';
 import { countByDate } from '@/lib/dashboard/schedule';
 import { listGroupSessions } from '@/lib/dashboard/sessions';
-import { listGroupMembers, loadStudentPool } from '@/lib/dashboard/students';
+import { listGroupMembers } from '@/lib/dashboard/students';
 import { getPool } from '@/lib/db/client';
 import { formatMillimes } from '@/lib/money';
 
 export const metadata: Metadata = { robots: { index: false } };
 
-const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+/** A card that only shows information, with its edit button underneath. */
+const cardClass =
+  'space-y-2 rounded-card border border-border bg-surface p-4 text-start';
 
 export default async function GroupPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{
-    mois?: string;
-    chercher?: string;
-    done?: string;
-    error?: string;
-    nouveaux?: string;
-  }>;
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale as Locale);
   const { user, access, now } = await requireDashboard(locale as Locale);
-  const query = await searchParams;
 
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const group = await getGroup(getPool(), user.id, id);
@@ -57,69 +39,32 @@ export default async function GroupPage({
 
   const t = await getTranslations('groups.page');
   const tl = await getTranslations('groups.list');
-  const tr = await getTranslations('calendar.row');
-  const td = await getTranslations('dashboard');
-
-  const today = tunisNow(now).date;
-  // Opens on today's month, or on the nearest month of the group's own period.
-  const defaultMonth = monthOf(
-    today < group.startDate
-      ? group.startDate
-      : today > group.endDate
-        ? group.endDate
-        : today,
-  );
-  // A date typed in the search bar opens that date's month and marks its sessions.
-  const searched = isValidDate(query.chercher) ? query.chercher : undefined;
-  const month = searched
-    ? monthOf(searched)
-    : query.mois && MONTH.test(query.mois)
-      ? query.mois
-      : defaultMonth;
-
-  const allSessions = await listGroupSessions(getPool(), user.id, group.id);
-  const sessions = allSessions.filter((s) => s.date.startsWith(month));
-  const found = searched
-    ? allSessions.filter((s) => s.date === searched).length
-    : 0;
-  const counts = Object.fromEntries(countByDate(allSessions));
-  const previewMonths = monthsBetween(
-    [group.startDate, allSessions[0]?.date].filter(Boolean).sort()[0] as string,
-    [group.endDate, allSessions.at(-1)?.date]
-      .filter(Boolean)
-      .sort()
-      .at(-1) as string,
-  );
   const tp = await getTranslations('groups.preview');
   const tcal = await getTranslations('calendar');
+
+  const today = tunisNow(now).date;
   const canWrite = access === 'full';
-  const here = `/groupes/${group.id}?mois=${month}`;
+  const allSessions = await listGroupSessions(getPool(), user.id, group.id);
   const members = await listGroupMembers(getPool(), user.id, group.id);
-  const allGroups = await listGroups(getPool(), user.id);
-  const pool = canWrite
-    ? await loadStudentPool(getPool(), user.id)
-    : { students: [], total: 0, serverMode: false };
-  // The rows just added are highlighted for about 3 seconds (spec 5.6).
-  const highlighted = new Set(
-    (query.nouveaux ?? '')
-      .split(',')
-      .filter((id) => /^[0-9a-f-]{36}$/.test(id)),
-  );
 
-  const prev = monthOf(addMonths(`${month}-01`, -1));
-  const next = monthOf(addMonths(`${month}-01`, 1));
-
-  const flash = query.done
-    ? { text: td(`flash.${query.done}` as 'flash.deleted'), error: false }
-    : query.error
-      ? {
-          text: td(`sessionErrors.${query.error}` as 'sessionErrors.invalid'),
-          error: true,
-        }
-      : null;
+  const counts = Object.fromEntries(countByDate(allSessions));
+  // Only the months that have sessions get a card.
+  const previewMonths = [
+    ...new Set(allSessions.map((s) => monthOf(s.date))),
+  ].sort();
+  const days = allSessions.map((s) => ({
+    key: s.id,
+    label: formatDay(s.date, locale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }),
+    times: `${s.startTime}-${s.endTime}`,
+  }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header className="space-y-2">
         <p className="text-sm">
           <Link
@@ -139,235 +84,17 @@ export default async function GroupPage({
         </h1>
       </header>
 
-      <dl className="grid gap-1 rounded-card border border-border bg-surface p-4 text-sm sm:grid-cols-[10rem_1fr]">
-        <dt className="font-medium">{t('period')}</dt>
-        <dd>
-          {formatDay(group.startDate, locale, { dateStyle: 'medium' })} →{' '}
-          {formatDay(group.endDate, locale, { dateStyle: 'medium' })}
-        </dd>
-        <dt className="font-medium">{t('schedule')}</dt>
-        <dd>
-          {group.rules.length === 0 ? (
-            t('manualSchedule')
-          ) : (
-            <bdi>{scheduleText(group.rules, locale)}</bdi>
-          )}
-        </dd>
-        <dt className="font-medium">{t('price')}</dt>
-        <dd>
-          {group.referencePriceMillimes === null
-            ? tl('noPrice')
-            : tl(
-                group.pricingModel === 'per_session'
-                  ? 'priceSession'
-                  : 'priceMonth',
-                {
-                  price: formatMillimes(group.referencePriceMillimes, locale),
-                },
-              )}
-        </dd>
-      </dl>
-
-      {canWrite && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/groupes/${group.id}/calendrier`}
-            className={buttonClass}
-          >
-            {tl('changeCalendar')}
-          </Link>
-          <DeleteGroup groupId={group.id} groupName={group.name} />
-        </div>
-      )}
-
-      <section aria-labelledby="students" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="students" className="text-lg font-semibold text-primary">
-            {t('students')}
-            {members.length > 0 && (
-              <span className="ms-2 text-sm font-normal text-muted">
-                ({members.length})
-              </span>
-            )}
-          </h2>
-          {canWrite && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href={`/groupes/${group.id}/eleves`}
-                className={secondaryButtonClass}
-              >
-                {t('editStudents')}
-              </Link>
-              <AddStudentButton
-                groupId={group.id}
-                groupName={group.name}
-                students={pool.students}
-                serverMode={pool.serverMode}
-                memberIds={members.map((m) => m.id)}
-                className={buttonClass + ' gap-2'}
-                label={t('addStudent')}
-              />
-            </div>
-          )}
-        </div>
-        {members.length === 0 ? (
-          <p className="rounded-card border border-border bg-surface p-4 text-muted">
-            {t('noStudents')}
-          </p>
-        ) : (
-          <GroupMembers
-            members={members}
-            groupId={group.id}
-            allGroups={allGroups.map((g) => ({
-              id: g.id,
-              name: g.name,
-              color: g.color,
-            }))}
-            canWrite={canWrite}
-            highlighted={[...highlighted]}
-          />
-        )}
-      </section>
-
-      <section aria-labelledby="sessions" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="sessions" className="text-lg font-semibold text-primary">
-            {t('sessions')}
-          </h2>
-          <nav aria-label={t('monthNav')} className="flex items-center gap-2">
-            <Link
-              href={`/groupes/${group.id}?mois=${prev}`}
-              className={secondaryButtonClass}
-              aria-label={t('previousMonth')}
-            >
-              ‹
-            </Link>
-            <span className="inline-block min-w-36 text-center font-medium first-letter:uppercase">
-              {monthTitle(month, locale)}
-            </span>
-            <Link
-              href={`/groupes/${group.id}?mois=${next}`}
-              className={secondaryButtonClass}
-              aria-label={t('nextMonth')}
-            >
-              ›
-            </Link>
-          </nav>
-        </div>
-
-        <form
-          method="get"
-          action={`${locale === 'ar' ? '/ar' : ''}/groupes/${group.id}`}
-          role="search"
-          className="flex flex-wrap items-end gap-2"
-        >
-          <div className="space-y-1">
-            <label htmlFor="date-search" className="block text-xs">
-              {t('search.label')}
-            </label>
-            <input
-              id="date-search"
-              type="date"
-              name="chercher"
-              required
-              defaultValue={searched ?? ''}
-              className={inputClass + ' !w-auto'}
-            />
-          </div>
-          <button type="submit" className={secondaryButtonClass}>
-            {t('search.button')}
-          </button>
-          {searched && (
-            <Link
-              href={`/groupes/${group.id}`}
-              className={secondaryButtonClass}
-            >
-              {t('search.clear')}
-            </Link>
-          )}
-        </form>
-        {searched && (
-          <p
-            role="status"
-            className={
-              'text-sm ' +
-              (found === 0 ? 'text-muted' : 'font-medium text-primary')
-            }
-          >
-            {found === 0
-              ? t('search.none', {
-                  date: formatDay(searched, locale, { dateStyle: 'full' }),
-                })
-              : t('search.found', {
-                  count: found,
-                  date: formatDay(searched, locale, { dateStyle: 'full' }),
-                })}
-          </p>
-        )}
-
-        {flash && (
-          <p
-            role={flash.error ? 'alert' : 'status'}
-            className={
-              'rounded-md border p-3 text-sm ' +
-              (flash.error
-                ? 'border-accent bg-secondary text-accent'
-                : 'border-primary bg-secondary text-primary')
-            }
-          >
-            {flash.text}
-          </p>
-        )}
-
-        {sessions.length === 0 ? (
-          <p className="rounded-card border border-border bg-surface p-4 text-muted">
-            {t('noSessions')}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {sessions.map((session) => (
-              <li
-                key={session.id}
-                className={
-                  'flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface p-3 ' +
-                  (session.date === searched ? 'ring-2 ring-primary' : '')
-                }
-              >
-                <div>
-                  <p className="font-medium">
-                    {formatDay(session.date, locale, {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                    })}
-                  </p>
-                  <p className="text-sm text-muted">
-                    <bdi dir="ltr">
-                      {session.startTime}-{session.endTime}
-                    </bdi>
-                    {session.origin === 'moved' && ` · ${tr('moved')}`}
-                    {session.origin === 'extra' && ` · ${tr('extra')}`}
-                  </p>
-                </div>
-                <SessionActions
-                  session={session}
-                  returnTo={here}
-                  canWrite={canWrite}
-                  now={now}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
+      {/* ------------------------------------------------------- the calendar, centred */}
       <section aria-labelledby="preview" className="space-y-3">
-        <div>
+        <div className="text-center">
           <h2 id="preview" className="text-lg font-semibold text-primary">
             {tp('title')}
           </h2>
           <p className="text-sm text-muted">{tp('hint')}</p>
         </div>
+        {previewMonths.length === 0 && (
+          <p className="text-center text-sm text-muted">{tp('empty')}</p>
+        )}
         <GroupCalendarPreview
           months={previewMonths}
           counts={counts}
@@ -380,6 +107,116 @@ export default async function GroupPage({
           }}
         />
       </section>
+
+      <div className="mx-auto max-w-2xl space-y-8">
+        {/* ------------------------------- card 1: the period and the days, then its button */}
+        <section aria-labelledby="overview-days" className="space-y-3">
+          <div className={cardClass}>
+            <h2
+              id="overview-days"
+              className="text-lg font-semibold text-primary"
+            >
+              {t('overviewDays')}
+            </h2>
+            <p className="text-sm">
+              <span className="font-medium">{t('period')} : </span>
+              <bdi>
+                {formatDay(group.startDate, locale, { dateStyle: 'medium' })} →{' '}
+                {formatDay(group.endDate, locale, { dateStyle: 'medium' })}
+              </bdi>
+            </p>
+            <p className="text-sm font-medium">{t('days')}</p>
+            <GroupDays days={days} />
+          </div>
+          {canWrite && (
+            <Link
+              href={`/groupes/${group.id}/calendrier`}
+              className={buttonClass}
+            >
+              {tl('changeCalendar')}
+            </Link>
+          )}
+        </section>
+
+        {/* ---------------------------------- card 2: the students' names, then its button */}
+        <section aria-labelledby="overview-students" className="space-y-3">
+          <div className={cardClass}>
+            <h2
+              id="overview-students"
+              className="text-lg font-semibold text-primary"
+            >
+              {t('students')}
+              {members.length > 0 && (
+                <span className="ms-2 text-sm font-normal text-muted">
+                  ({members.length})
+                </span>
+              )}
+            </h2>
+            {members.length === 0 ? (
+              <p className="text-sm text-muted">{t('noStudents')}</p>
+            ) : (
+              <ul className="flex flex-wrap gap-2 text-sm">
+                {members.map((member) => (
+                  <li
+                    key={member.id}
+                    className="rounded-full bg-secondary px-3 py-1 text-secondary-foreground"
+                  >
+                    {member.fullName}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {canWrite && (
+            <Link
+              href={`/groupes/${group.id}/eleves`}
+              className={secondaryButtonClass}
+            >
+              {t('editStudents')}
+            </Link>
+          )}
+        </section>
+
+        {/* ------------------------------------- card 3: the price, then its button */}
+        <section aria-labelledby="overview-price" className="space-y-3">
+          <div className={cardClass}>
+            <h2
+              id="overview-price"
+              className="text-lg font-semibold text-primary"
+            >
+              {t('price')}
+            </h2>
+            <p className="text-sm">
+              {group.referencePriceMillimes === null
+                ? tl('noPrice')
+                : tl(
+                    group.pricingModel === 'per_session'
+                      ? 'priceSession'
+                      : 'priceMonth',
+                    {
+                      price: formatMillimes(
+                        group.referencePriceMillimes,
+                        locale,
+                      ),
+                    },
+                  )}
+            </p>
+          </div>
+          {canWrite && (
+            <EditGroupPrice
+              groupId={group.id}
+              pricingModel={group.pricingModel}
+              referencePriceMillimes={group.referencePriceMillimes}
+            />
+          )}
+        </section>
+
+        {canWrite && (
+          <div className="border-t border-border pt-6">
+            <DeleteGroup groupId={group.id} groupName={group.name} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

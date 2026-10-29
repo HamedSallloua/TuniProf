@@ -46,7 +46,7 @@ export function GroupCalendarPreview({
 
   return (
     <div className="space-y-3">
-      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <p className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
         <span className="inline-flex items-center gap-1">
           <span
             aria-hidden="true"
@@ -75,11 +75,11 @@ export function GroupCalendarPreview({
           </span>
         )}
       </p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex flex-wrap justify-center gap-4">
         {months.map((month) => (
           <section
             key={month}
-            className="rounded-card border border-border bg-surface p-3"
+            className="w-full max-w-xs rounded-card border border-border bg-surface p-3 sm:w-72"
           >
             <h3 className="mb-2 text-center font-medium first-letter:uppercase">
               {monthTitle(month, locale)}

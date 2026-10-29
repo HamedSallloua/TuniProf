@@ -2,6 +2,28 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-29 (M9, fifth round of changes asked by the owner)
+
+- "Green" is the app's main green (the same as the group wizard's new sessions). Today in this calendar is a thin ring instead of the Calendrier's green fill, so a green day always means a session of this group. The red rule reads "overlaps another session" (other groups, or this group's own); the day screen already refuses an added session that overlaps this group's own, so in practice red appears against other groups' sessions.
+
+## 2026-10-29 (M9, fourth round of changes asked by the owner)
+
+- **"Modifier calendrier" shows one month at a time**, chosen by the URL (`?mois=` or `?chercher=`), the same as the sessions list; this replaces the "only months with sessions" cards of the third round on that page only. It also removes the consequence I noted last round (no way to add a day in an empty month).
+- Going to "Ajouter une séance" from this page leaves it, so changes prepared but not saved on the calendar are lost; save first. (The arrows and the search do not lose them.)
+
+## 2026-10-29 (M9, third round of changes asked by the owner)
+
+- **"Réinitialiser aussi les séances modifiées" is removed** (owner's request). This differs from spec 5.3 (which has the reset box); the owner's ruling wins. A weekly pattern change never touches sessions moved one by one, added days or past sessions; to change a moved session the teacher edits it day by day.
+- **Calendar previews show only months with sessions.** In "Modifier calendrier" the other groups' sessions are still loaded for the whole span of the group (to catch overlaps), only the drawn cards are filtered. Consequence of removing the month buttons: from this page a session cannot be added in a month that has none; use "Ajouter une séance" (Calendrier) or move a session there.
+- **"Modifier liste d'élèves" merged into one list.** The immediate inline editing of a field and the immediate "Retirer du groupe" of the old cards were replaced by the prepared edit and the prepared removal (same effect, saved with the list). The three actions that need their own dialog stay immediate: add to another group, move, delete.
+
+## 2026-10-29 (M9, second round of changes asked by the owner)
+
+- **The group price is required** (owner's request). This differs from spec 5.2 and the groups table of the spec ("optional reference price"); the owner's ruling wins. A price is a whole number of millimes above 0, with a pricing model. The database column stays nullable only because groups made before still have none (they show "Prix non défini"); the server refuses to create a group or to save a price without one.
+- **Same name AND same phone is refused** (owner's request). It replaces the warning with "Créer quand même" of spec 5.7. My reading: only when the phone is filled in. Two students with the same name and no phone are allowed (they may be two different children); say so if you want that refused too. The rule is per teacher. It applies when creating (profile, picker, group list page) and when editing (the resulting name AND phone together). Migration 0021 (unique index) guarantees it even for two requests at the same moment. A side effect: in "Modifier liste d'élèves" a swap of two students' phones in one save is refused (the first change collides with the second student's old values); do it in two saves.
+- **Group page** now only shows information; the work moved to the edit pages ("Modifier calendrier" gets the sessions list, "Modifier liste d'élèves" gets the student cards). The days list folds above 5 days (first 3, "Afficher plus", last). The price card keeps the title "Prix de référence".
+- **Next session** on a group card means the next session that is not over yet (today's later ones count), whatever its date.
+
 ## 2026-10-29 (M9, first round of changes asked by the owner)
 
 - **Student archiving is removed** (owner's request). This differs from spec 5.7 ("Archiver" and the Actifs / Archivés filter); the owner's ruling wins and replaces the "Archive" decision below. Migration 0020 drops `students.archived_at`. A student archived before is a normal student again (nothing was hidden for good). Deleting (name typed) is the only way to remove a student, and the delete dialog no longer recommends archiving.
