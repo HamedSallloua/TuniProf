@@ -9,6 +9,13 @@ import { getPool } from '@/lib/db/client';
 import { requireDashboard } from '@/lib/dashboard/context';
 import { formatDay, scheduleText } from '@/lib/dashboard/format';
 import { listGroups, type Group } from '@/lib/dashboard/groups';
+import {
+  groupMemberIds,
+  groupStudentCounts,
+  groupStudentsForSearch,
+  loadStudentPool,
+} from '@/lib/dashboard/students';
+import { digitsOnly } from '@/lib/text/normalize';
 import { formatMillimes } from '@/lib/money';
 
 export const metadata: Metadata = { robots: { index: false } };
@@ -24,6 +31,14 @@ export default async function GroupsPage({
 
   const t = await getTranslations('groups.list');
   const groups = await listGroups(getPool(), user.id);
+  const counts = await groupStudentCounts(getPool(), user.id);
+  const studentsByGroup = await groupStudentsForSearch(getPool(), user.id);
+  // The picker of "Ajouter élève" searches these students (only a teacher who can change things).
+  const pool =
+    access === 'full'
+      ? await loadStudentPool(getPool(), user.id)
+      : { students: [], total: 0, serverMode: false };
+  const membersByGroup = await groupMemberIds(getPool(), user.id);
 
   const rows: GroupRowData[] = groups.map((group: Group) => ({
     id: group.id,
@@ -46,6 +61,11 @@ export default async function GroupsPage({
       group.referencePriceMillimes === null
         ? ''
         : String(group.referencePriceMillimes),
+    studentCount: counts.get(group.id) ?? 0,
+    studentNames: (studentsByGroup.get(group.id) ?? []).map((s) => s.fullName),
+    studentPhoneDigits: (studentsByGroup.get(group.id) ?? [])
+      .filter((s) => s.phone !== null)
+      .map((s) => digitsOnly(s.phone as string)),
   }));
 
   return (
@@ -60,7 +80,13 @@ export default async function GroupsPage({
         )}
       </header>
 
-      <GroupList rows={rows} readOnly={access !== 'full'} />
+      <GroupList
+        rows={rows}
+        readOnly={access !== 'full'}
+        students={pool.students}
+        serverMode={pool.serverMode}
+        membersByGroup={membersByGroup}
+      />
     </div>
   );
 }

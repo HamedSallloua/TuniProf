@@ -3,6 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { secondaryButtonClass } from '@/components/auth/styles';
+import { AddStudentButton } from '@/components/students/AddStudentOverlay';
+import type { StudentRow } from '@/lib/dashboard/students';
+import { MIN_PHONE_DIGITS } from '@/lib/students/search';
 import { Link } from '@/i18n/navigation';
 import {
   digitsOnly,
@@ -21,6 +24,10 @@ export type GroupRowData = {
   priceText: string;
   /** The digits of the price, for the search: "20000". */
   priceDigits: string;
+  /** The students in the group now: how many, their names and the digits of their phones. */
+  studentCount: number;
+  studentNames: string[];
+  studentPhoneDigits: string[];
 };
 
 /**
@@ -31,9 +38,16 @@ export type GroupRowData = {
 export function GroupList({
   rows,
   readOnly,
+  students,
+  serverMode,
+  membersByGroup,
 }: {
   rows: GroupRowData[];
   readOnly: boolean;
+  /** For "Ajouter élève": the students the picker searches, and who is in which group. */
+  students: StudentRow[];
+  serverMode: boolean;
+  membersByGroup: Record<string, string[]>;
 }) {
   const t = useTranslations('groups.list');
   const [query, setQuery] = useState('');
@@ -48,6 +62,13 @@ export function GroupList({
       if (matchesWordStart(query, row.name)) reasons.push('name');
       if (digits !== '' && row.priceDigits.includes(digits))
         reasons.push('price');
+      if (row.studentNames.some((name) => matchesWordStart(query, name)))
+        reasons.push('student');
+      if (
+        digits.length >= MIN_PHONE_DIGITS &&
+        row.studentPhoneDigits.some((phone) => phone.includes(digits))
+      )
+        reasons.push('phone');
       return reasons.length > 0 ? [{ row, reasons }] : [];
     });
   }, [rows, query]);
@@ -102,14 +123,24 @@ export function GroupList({
                   </p>
                   <p className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
-                      {t('emptyBadge')}
+                      {row.studentCount === 0
+                        ? t('emptyBadge')
+                        : t('studentCount', { count: row.studentCount })}
                     </span>
                     {reasons.map((reason) => (
                       <span
                         key={reason}
                         className="rounded-full border border-primary px-2 py-0.5 text-primary"
                       >
-                        {t(reason === 'name' ? 'matchName' : 'matchPrice')}
+                        {t(
+                          reason === 'name'
+                            ? 'matchName'
+                            : reason === 'price'
+                              ? 'matchPrice'
+                              : reason === 'student'
+                                ? 'matchStudent'
+                                : 'matchPhone',
+                        )}
                       </span>
                     ))}
                   </p>
@@ -122,6 +153,25 @@ export function GroupList({
                   >
                     {t('open')}
                   </Link>
+                  {!readOnly && (
+                    <AddStudentButton
+                      groupId={row.id}
+                      groupName={row.name}
+                      students={students}
+                      serverMode={serverMode}
+                      memberIds={membersByGroup[row.id] ?? []}
+                      className={secondaryButtonClass}
+                      label={t('addStudent')}
+                    />
+                  )}
+                  {!readOnly && (
+                    <Link
+                      href={`/groupes/${row.id}/eleves`}
+                      className={secondaryButtonClass}
+                    >
+                      {t('editStudents')}
+                    </Link>
+                  )}
                   {!readOnly && (
                     <Link
                       href={`/groupes/${row.id}/calendrier`}

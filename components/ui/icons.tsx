@@ -72,6 +72,15 @@ export function UsersIcon({ className = 'size-5' }: IconProps) {
   );
 }
 
+export function StudentIcon({ className = 'size-5' }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M2 9l10-5 10 5-10 5-10-5z" />
+      <path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5M22 9v6" />
+    </svg>
+  );
+}
+
 export function CalendarIcon({ className = 'size-5' }: IconProps) {
   return (
     <svg {...base} className={className}>

@@ -2,6 +2,48 @@
 
 Dated record of every choice not fixed by the spec. Newest at the bottom of each day.
 
+## 2026-10-29 (M9, first round of changes asked by the owner)
+
+- **Student archiving is removed** (owner's request). This differs from spec 5.7 ("Archiver" and the Actifs / Archivés filter); the owner's ruling wins and replaces the "Archive" decision below. Migration 0020 drops `students.archived_at`. A student archived before is a normal student again (nothing was hidden for good). Deleting (name typed) is the only way to remove a student, and the delete dialog no longer recommends archiving.
+- **Delete and move are on the cards**, not only on the student page: group-page cards got "Supprimer", Élèves-list cards got "Déplacer" and "Supprimer". The delete dialog is the same everywhere. From the Élèves list a student can be in several groups, so "Déplacer" first asks which group they leave (skipped when there is only one) and the target cannot be a group the student is in.
+- **Search inside a group** is the shared search run in the browser over the members of the group (a group is small, so there is no server mode there); it appears when the group has two students or more.
+- **"Modifier liste d'élèves"** (spec silent, owner request, modelled on "Modifier calendrier"):
+  - Changes are kept on the page and saved with one button, in one transaction, all or nothing: students removed from the group (memberships end, history stays), information edited (the one student record, so it changes everywhere), existing students added, new students created and added. The order inside the save is removals, edits, creations (with the duplicate check), then the new memberships.
+  - A failure rolls everything back and names the row (`list` and `index`); a new student identical to an existing one is the same warning as in "Ajouter élève" (settled per row by "Créer quand même", sent as `force`), and "Utiliser l'élève existant" turns the row into an addition (or drops it when that student is already in the group).
+  - Only the students of THIS group can be removed by it (a membership of another group is refused); edits are by student id, restricted to the teacher's own students; at most 200 changes per save (my number).
+  - Not in this page (they stay on the cards and the student page): moving a student to another group and deleting a student.
+  - "Ajouter élève" has a "prepare only" mode (`stage`) used by this page; the phone is checked at once with the same function as the server (`lib/students/clean.ts`, moved out of the server code so the browser can use it).
+  - The name, phone and note rules are unchanged (name 2 to 80, Tunisian mobile phone or empty, note 300).
+
+## 2026-10-29 (M9)
+
+**Difference between AGENT_CONTEXT and the spec (the spec wins, told to the owner):** both give the same M9 content, but AGENT_CONTEXT's "done when" (tests 9, 16, 17, 18, 19) and the spec's student page (month block, "Total du mois", payment filter, revenue warning) need `monthly_accounts`, which both documents build in M10. Decision (proposed to the owner, who answered "start M9"): M9 builds everything that does not need billing; the billing-dependent parts and the parts of tests 9 and 19 that need them are done in M10 (list in PROGRESS.md). Not invented: no amount, counter or payment status exists in M9.
+
+**Data**
+
+- **`students`** has the spec's columns plus `note_norm` (my addition: the search must ignore accents in notes too, and SQL has no accent-folding without an extension) and `role` (always teacher, like groups). The name is 2 to 80 characters, the note at most 300 (my numbers; the spec is silent). `full_name_norm`, `phone_digits` and `note_norm` are written by the application with the same function as the search (`normalizeSearch`), so a search can never disagree with what is stored.
+- **`memberships`** has a `teacher_id` column (not in the spec) so that two composite foreign keys, to the group and to the student of the SAME teacher, make a cross-teacher membership impossible in the database (invariant 16, same idea as `sessions`). One open membership per student and group (partial unique index); coming back later is a new row (spec 5.7). `default_discount_millimes` is created now for M10 and unused.
+- **Phone:** optional, and validated exactly like a sign-up phone (Tunisian mobile, +216 and 8 digits starting with 2, 4, 5 or 9; spec 5.7 says "validated as in 4.1"). A parent's landline or a foreign number therefore cannot be saved: to confirm with the owner. Stored in E.164, shown as "22 345 678", always left to right.
+- **Dates of a membership** are the Tunisia date of the day it is created or ended (`tunisNow`), like sessions.
+- **Deleting a group** keeps its students (only the memberships go); they become "Sans groupe".
+
+**Rules**
+
+- **Duplicates:** a new student whose normalised name AND phone (both empty counts as equal) equal an existing student's gets the warning "Utiliser l'élève existant / Créer quand même", not a block (spec 5.7). Editing an existing student never warns.
+- ~~**Archive:** only with no active group, "Restaurer"...~~ No longer applies: archiving was removed (see the first round of changes above).
+- **Delete:** permanent, the name typed exactly (trimmed), the memberships go with the student. The sentence about recorded payments waits for M10.
+- **Add to a group** (one or many students, or one student to many groups) is all or nothing; a student already in the group, or somebody else's student or group refuses the whole request. At most 500 ids per request.
+- **Move** ends the membership in the old group and starts one in the target in one step; the target must be another group where the student is not.
+- **Search:** name words match from their start; the phone matches digits anywhere but needs at least 2 digits (one digit would match everybody; my number); the note and the names of the student's CURRENT groups match by word start. Ranking name, phone, note, group, alphabetical inside each. Results 20 at a time, debounce 150 ms (spec). Browser filter up to 200 students, server search above (spec "about 200"; the first 200, alphabetical, are sent to the browser in that case). The server narrows with the trigram indexes (`LIKE`, with `%`, `_` and `\` escaped) and at most 500 candidates, then ranks with the same pure functions, so both give the same answer (tested).
+- **Group search bar** (spec 5.5 asks for student names and phones): the groups list now also matches the students of each group, by name and phone digits, with a chip "Élève" or "Téléphone d'un élève".
+
+**Screens**
+
+- **Shared pieces:** one search hook, one results line (`StudentSummary`), one group picker (several groups or one), one inline editor ("Modifier" per field) used on the group page and the student page, and the Élèves list has a small edit form per row (name, phone, note at once).
+- **Option 2 of "Ajouter élève"** is two steps as in the spec (name, then phone and note with "Confirmer" or "Passer et confirmer"); tapping a suggestion resets the new-student form, so nobody is created by tapping. From the Élèves section (no group) a suggestion opens that student's page instead.
+- **New students are highlighted** for about 3 seconds through `?nouveaux=` (group page) and `?nouveau=` (Élèves), only ids that look like ids are used.
+- **Access:** all student actions need a fully active Dashboard (read-only and ended Dashboards are refused by the server); searching only needs the Dashboard not to be over (`readableTeacher`), so the list still works in the read-only month.
+
 ## 2026-10-28 (M8, fourth round of changes asked by the owner)
 
 - **"Modifier calendrier" gets the day-by-day editing of the wizard** (one function, `changeCalendar` in `lib/dashboard/calendar-change.ts`, which now takes `addedSessions`, `deletedSessionIds` and `editedSessions` next to the pattern). The changes are staged on the page and saved together; everything is checked again by the server in one transaction (all or nothing, past sessions refused, a session that is not this group's refused, overlaps with other groups and between new sessions listed, the database constraint stays the last guard).

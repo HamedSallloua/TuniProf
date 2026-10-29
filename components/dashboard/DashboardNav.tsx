@@ -1,13 +1,14 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { CalendarIcon, UsersIcon } from '@/components/ui/icons';
+import { CalendarIcon, StudentIcon, UsersIcon } from '@/components/ui/icons';
 import { Link, usePathname } from '@/i18n/navigation';
 
 // The Dashboard navigation (spec 5.1): a sidebar on a computer, a bar at the bottom of the
-// screen on a phone. Élèves and Statistiques are added to it when those sections exist.
+// screen on a phone. Statistiques is added to it when that section exists (M10).
 const ITEMS = [
   { href: '/groupes', key: 'groups', Icon: UsersIcon },
+  { href: '/eleves', key: 'students', Icon: StudentIcon },
   { href: '/calendrier', key: 'calendar', Icon: CalendarIcon },
 ] as const;
 

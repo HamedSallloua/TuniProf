@@ -9,6 +9,8 @@ import {
 import { DeleteGroup } from '@/components/dashboard/DeleteGroup';
 import { GroupCalendarPreview } from '@/components/dashboard/GroupCalendarPreview';
 import { SessionActions } from '@/components/dashboard/SessionActions';
+import { AddStudentButton } from '@/components/students/AddStudentOverlay';
+import { GroupMembers } from '@/components/students/GroupMembers';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { requireDashboard } from '@/lib/dashboard/context';
@@ -20,9 +22,10 @@ import {
   tunisNow,
 } from '@/lib/dashboard/dates';
 import { formatDay, monthTitle, scheduleText } from '@/lib/dashboard/format';
-import { getGroup } from '@/lib/dashboard/groups';
+import { getGroup, listGroups } from '@/lib/dashboard/groups';
 import { countByDate } from '@/lib/dashboard/schedule';
 import { listGroupSessions } from '@/lib/dashboard/sessions';
+import { listGroupMembers, loadStudentPool } from '@/lib/dashboard/students';
 import { getPool } from '@/lib/db/client';
 import { formatMillimes } from '@/lib/money';
 
@@ -40,6 +43,7 @@ export default async function GroupPage({
     chercher?: string;
     done?: string;
     error?: string;
+    nouveaux?: string;
   }>;
 }) {
   const { locale, id } = await params;
@@ -90,6 +94,17 @@ export default async function GroupPage({
   const tcal = await getTranslations('calendar');
   const canWrite = access === 'full';
   const here = `/groupes/${group.id}?mois=${month}`;
+  const members = await listGroupMembers(getPool(), user.id, group.id);
+  const allGroups = await listGroups(getPool(), user.id);
+  const pool = canWrite
+    ? await loadStudentPool(getPool(), user.id)
+    : { students: [], total: 0, serverMode: false };
+  // The rows just added are highlighted for about 3 seconds (spec 5.6).
+  const highlighted = new Set(
+    (query.nouveaux ?? '')
+      .split(',')
+      .filter((id) => /^[0-9a-f-]{36}$/.test(id)),
+  );
 
   const prev = monthOf(addMonths(`${month}-01`, -1));
   const next = monthOf(addMonths(`${month}-01`, 1));
@@ -165,14 +180,53 @@ export default async function GroupPage({
         </div>
       )}
 
-      <section
-        aria-labelledby="students"
-        className="rounded-card border border-border bg-surface p-4"
-      >
-        <h2 id="students" className="font-semibold text-primary">
-          {t('students')}
-        </h2>
-        <p className="mt-1 text-sm text-muted">{t('noStudents')}</p>
+      <section aria-labelledby="students" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="students" className="text-lg font-semibold text-primary">
+            {t('students')}
+            {members.length > 0 && (
+              <span className="ms-2 text-sm font-normal text-muted">
+                ({members.length})
+              </span>
+            )}
+          </h2>
+          {canWrite && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/groupes/${group.id}/eleves`}
+                className={secondaryButtonClass}
+              >
+                {t('editStudents')}
+              </Link>
+              <AddStudentButton
+                groupId={group.id}
+                groupName={group.name}
+                students={pool.students}
+                serverMode={pool.serverMode}
+                memberIds={members.map((m) => m.id)}
+                className={buttonClass + ' gap-2'}
+                label={t('addStudent')}
+              />
+            </div>
+          )}
+        </div>
+        {members.length === 0 ? (
+          <p className="rounded-card border border-border bg-surface p-4 text-muted">
+            {t('noStudents')}
+          </p>
+        ) : (
+          <GroupMembers
+            members={members}
+            groupId={group.id}
+            allGroups={allGroups.map((g) => ({
+              id: g.id,
+              name: g.name,
+              color: g.color,
+            }))}
+            canWrite={canWrite}
+            highlighted={[...highlighted]}
+          />
+        )}
       </section>
 
       <section aria-labelledby="sessions" className="space-y-3">

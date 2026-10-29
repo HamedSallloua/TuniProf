@@ -143,3 +143,27 @@ All the texts are in `messages/ar.json` under `dashboard`, `groups` and `calenda
 | Choisir les jours dans un calendrier | باختيار الأيام من تقويم |
 | Liste des séances                    | قائمة الحصص             |
 | Déplacée / Ajoutée                   | منقولة / مضافة          |
+
+## Students (M9): Arabic texts (approved 2026-10-29)
+
+All the texts are in `messages/fr.json` and `messages/ar.json` under `students`, `dashboard.nav.students`, and the new keys of `groups.list` and `groups.page`.
+
+| French                                       | Arabic (draft)                          |
+| -------------------------------------------- | --------------------------------------- |
+| Élèves                                       | التلاميذ                                |
+| Ajouter élève                                | إضافة تلميذ                             |
+| Ajouter un élève existant                    | إضافة تلميذ موجود                       |
+| Ajouter un nouvel élève                      | إضافة تلميذ جديد                        |
+| Ajouter les élèves (n)                       | إضافة التلاميذ (n)                      |
+| Déjà dans ce groupe                          | موجود في هذه المجموعة بالفعل            |
+| Sans groupe                                  | بدون مجموعة                             |
+| Retirer du groupe                            | إزالة من المجموعة                       |
+| Ajouter à un autre groupe                    | إضافة إلى مجموعة أخرى                   |
+| Déplacer vers un autre groupe                | نقل إلى مجموعة أخرى                     |
+| Utiliser l'élève existant / Créer quand même | استعمال التلميذ الموجود / إنشاء رغم ذلك |
+| Passer et confirmer                          | تجاوز وتأكيد                            |
+| Modifier liste d'élèves                      | تعديل قائمة التلاميذ                    |
+| Enregistrer la liste                         | حفظ القائمة                             |
+| Rechercher dans ce groupe                    | البحث في هذه المجموعة                   |
+| Supprimer définitivement                     | حذف نهائي                               |
+| Depuis quel groupe ? / Vers quel groupe ?    | من أي مجموعة؟ / إلى أي مجموعة؟          |

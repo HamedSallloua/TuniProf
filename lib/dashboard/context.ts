@@ -77,11 +77,30 @@ export async function writableTeacher(
   };
 }
 
+/**
+ * For the server actions that only READ (searching students): the signed-in teacher while the
+ * Dashboard is active or in its read-only period, never after it.
+ */
+export async function readableTeacher(
+  now: Date = new Date(),
+): Promise<
+  | { ok: true; user: SessionUser }
+  | { ok: false; reason: 'not_signed_in' | 'no_access' }
+> {
+  const user = await getCurrentUser();
+  if (!user || !can(user.role, 'teacher:space'))
+    return { ok: false, reason: 'not_signed_in' };
+  const { access } = await accessOf(user.id, now);
+  return access === 'none'
+    ? { ok: false, reason: 'no_access' }
+    : { ok: true, user };
+}
+
 /** Where a form may send the teacher back to: only the Dashboard's own pages. */
 export function safeReturnPath(value: unknown, fallback: string): string {
   return typeof value === 'string' &&
     value.length <= 300 &&
-    /^\/(groupes|calendrier)(\/[A-Za-z0-9_-]+)*(\?[A-Za-z0-9_=&%.-]*)?$/.test(
+    /^\/(groupes|calendrier|eleves)(\/[A-Za-z0-9_-]+)*(\?[A-Za-z0-9_=&%.,-]*)?$/.test(
       value,
     )
     ? value
